@@ -66,10 +66,20 @@ the one you asked for, so a leftover process doesn't stop the launch.
 - **Play in VLC** — the fallback. Hands VLC exactly what is on screen, in the
   order shown. Better for a long listen: gapless, ReplayGain, and every codec
   the browser won't touch.
-- **Skins** — the gear in the bottom-right corner. Three eras that kept this
-  layout, named for small towns in British Columbia: **Greenwood** (iTunes 1–4,
-  brushed metal, the default), **Tofino** (5–6, flat grey), **Kaslo** (7–10,
-  blue sidebar). Remembered per browser.
+- **Skins** — the gear in the bottom-right corner. Remembered per browser.
+
+  | | | |
+  | --- | --- | --- |
+  | **Greenwood** | iTunes 1–4 | brushed metal, the default |
+  | **Tofino** | iTunes 5–6 | flat grey |
+  | **Kaslo** | iTunes 7–10 | blue sidebar |
+  | **Concrete** | Windows 3.1 | teal desktop, centred navy title |
+  | **Startup** | Windows 95 | the gradient title bar |
+  | **Chelan** | Windows XP | Luna blue and beige |
+  | **Boring** | Hot Dog Stand | red, yellow, black, no mercy |
+
+  Mac eras are named for small towns in British Columbia, Windows eras for small
+  towns in Washington and Oregon. All seven towns are real.
 - **Missing tracks** — shown greyed, with a Found column saying how each was
   located: `direct`, `moved`, `by size`, or `gone`. They're excluded from totals
   and never queued.
@@ -134,7 +144,9 @@ their colours on this one would be a costume rather than a skin. The three
 offered are the eras that genuinely shared this arrangement.
 
 Each skin is a set of CSS custom-property overrides — no skin sets a real
-property, which is enforced by a test, so none of them can drift the layout.
+property, which is enforced by a test, so none of them can drift the layout. The
+tokens cover shape as well as colour (corner radius, bevels, title bar, type),
+which is what lets a Windows skin stop being Mac-shaped without touching a rule.
 
 ## Limits
 

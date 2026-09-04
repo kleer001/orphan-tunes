@@ -7,46 +7,66 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from build_browser import CSS, JS  # noqa: E402
 
-SKINS = ("greenwood", "tofino", "kaslo")
+BASE = "greenwood"          # lives on :root, so it needs no attribute
+OFFERED = re.findall(r'\["(\w+)","([^"]+)","([^"]+)"\]', JS)
 
 
-def test_greenwood_is_the_base_stylesheet():
-    """It must live on :root, so the default needs no attribute to be correct."""
+def skin_blocks():
+    return dict(re.findall(r'\[data-skin="(\w+)"\]\{([^}]*)\}', CSS))
+
+
+def test_the_page_offers_some_skins():
+    assert len(OFFERED) >= 2, OFFERED
+
+
+def test_the_base_skin_is_root_and_carries_no_attribute():
     assert ":root{" in CSS.replace(" ", "")
-    assert '[data-skin="greenwood"]' not in CSS
+    assert f'[data-skin="{BASE}"]' not in CSS
+    assert OFFERED[0][0] == BASE, "the base must be offered first"
 
 
-def test_the_other_skins_are_attribute_scoped():
-    for skin in SKINS[1:]:
-        assert f'[data-skin="{skin}"]' in CSS, skin
+def test_every_offered_skin_has_a_css_block():
+    """A skin in the menu with no stylesheet silently does nothing when picked."""
+    blocks = skin_blocks()
+    for skin_id, label, _ in OFFERED:
+        if skin_id == BASE:
+            continue
+        assert skin_id in blocks, f"{label} is offered but has no CSS"
 
 
-def test_every_skin_the_page_offers_exists_in_the_css():
-    offered = set(re.findall(r'\["(\w+)","[^"]+","iTunes', JS))
-    assert offered == set(SKINS), offered
-    for skin in offered - {SKINS[0]}:
-        assert f'[data-skin="{skin}"]' in CSS
+def test_every_css_block_is_offered():
+    """And a stylesheet nobody can select is dead weight."""
+    offered = {s for s, _, _ in OFFERED}
+    for skin_id in skin_blocks():
+        assert skin_id in offered, f"{skin_id} has CSS but is not in the menu"
 
 
-def test_no_skin_claims_an_era_that_changed_the_layout():
+def test_no_itunes_skin_claims_an_era_that_changed_the_layout():
     """iTunes 11 hid the sidebar and 12 moved to tabs; neither is a repaint."""
-    eras = re.findall(r'"iTunes ([\d-]+)"', JS)
-    assert eras, "no eras declared"
-    for era in eras:
-        highest = int(era.split("-")[-1])
-        assert highest <= 10, f"iTunes {era} is a different layout, not a skin"
+    for _, label, era in OFFERED:
+        if not era.startswith("iTunes"):
+            continue
+        highest = int(era.split()[-1].split("-")[-1])
+        assert highest <= 10, f"{label} claims {era}, a different layout"
 
 
 def test_skins_only_override_tokens_never_layout():
-    """A skin that sets a width or a display would drift from the base layout."""
-    for block in re.findall(r'\[data-skin="\w+"\]\{([^}]*)\}', CSS):
+    """A skin that sets a real property would drift from the base layout."""
+    for skin_id, block in skin_blocks().items():
         for decl in filter(None, (d.strip() for d in block.split(";"))):
             prop = decl.split(":")[0].strip()
-            assert prop.startswith("--"), f"skin sets a real property: {decl}"
+            assert prop.startswith("--"), f"{skin_id} sets a real property: {decl}"
 
 
 def test_the_base_defines_every_token_a_skin_overrides():
     base = set(re.findall(r'(--[\w-]+):', CSS.split("[data-skin=")[0]))
-    for block in re.findall(r'\[data-skin="\w+"\]\{([^}]*)\}', CSS):
+    for skin_id, block in skin_blocks().items():
         for token in re.findall(r'(--[\w-]+):', block):
-            assert token in base, f"{token} overridden but never defined on :root"
+            assert token in base, f"{skin_id} sets {token}, never defined on :root"
+
+
+def test_skin_ids_and_labels_are_unique():
+    ids = [s for s, _, _ in OFFERED]
+    labels = [label for _, label, _ in OFFERED]
+    assert len(set(ids)) == len(ids), ids
+    assert len(set(labels)) == len(labels), labels

@@ -141,6 +141,22 @@ CSS = r"""
    a skin. Named for small towns in British Columbia.
    Greenwood is the default and matches iTunes 1-4.                        */
 :root{
+  /* shape and type, so a skin can stop being Mac-shaped */
+  --font:"Lucida Grande","Segoe UI",Helvetica,Arial,sans-serif;
+  --ink:#000;
+  --radius:7px; --lcd-radius:9px; --btn-radius:50%; --field-radius:10px;
+  --bevel:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28);
+  --bevel-in:inset 0 2px 4px rgba(0,0,0,.3);
+  --pane-inset:inset 0 1px 3px rgba(0,0,0,.3);
+  --lights:flex;
+  --gear-radius:4px;
+  --vlc-a:#6f6f6f; --vlc-b:#3a3a3a; --vlc-line:#2f2f2f; --vlc-ink:#f4f4f4;
+  --vlc-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px rgba(0,0,0,.4);
+  --title-bg:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b));
+  --title-ink:#3a3a3a; --title-just:center; --title-pad:0;
+  --title-h:22px; --title-weight:600;
+  --shadow:0 12px 34px rgba(0,0,0,.45);
+
   --desk:#6b6b6b;
   --grain:repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(0,0,0,.035) 1px 2px);
   --chrome-a:#e8e8e8; --chrome-b:#d0d0d0; --chrome-line:#a4a4a4; --chrome-ink:#3a3a3a;
@@ -192,37 +208,165 @@ CSS = r"""
   --scroll-track:#e8edf2; --scroll-a:#c2d0e0; --scroll-b:#96a9be; --scroll-line:#7d90a5;
 }
 
+
+/* --- Redmond's turn. Named for small towns in Washington and Oregon. ------
+   These change shape as well as colour: square corners, chunky bevels, a real
+   title bar. Still tokens only, so the layout underneath is untouched.       */
+
+/* Concrete, WA -- Windows 3.1. Teal desktop, solid navy title, centred, and
+   the raised grey bevel on everything. There is a real town called Concrete. */
+[data-skin="concrete"]{
+  --gear-radius:0;
+  --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
+  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+               inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
+  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --desk:#008080; --grain:none;
+  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
+  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+          inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
+  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff,
+             inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf;
+  --pane-inset:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;
+  --shadow:none; --lights:none;
+  --title-bg:linear-gradient(#000080,#000080); --title-ink:#fff;
+  --title-just:center; --title-h:20px; --title-weight:700;
+  --chrome-a:#c0c0c0; --chrome-b:#c0c0c0; --chrome-line:#000; --chrome-ink:#000;
+  --win-line:#000;
+  --lcd-a:#c0c0c0; --lcd-b:#c0c0c0; --lcd-line:#808080; --lcd-ink:#000; --lcd-dim:#000;
+  --bar-track:#fff; --bar-line:#808080; --bar-a:#000080; --bar-b:#000080;
+  --btn-a:#c0c0c0; --btn-b:#c0c0c0; --btn-line:#000; --btn-ink:#000;
+  --pane:#fff; --src-bg:#fff; --src-line:#808080;
+  --src-head-a:#c0c0c0; --src-head-b:#c0c0c0; --src-head-ink:#000;
+  --sel:#000080; --sel-ink:#fff;
+  --head-a:#c0c0c0; --head-b:#c0c0c0; --head-line:#808080; --head-ink:#000; --head-div:#808080;
+  --sorted-a:#a0a0a0; --sorted-b:#a0a0a0;
+  --stripe:#fff; --rowsel:#000080;
+  --scroll-track:#dfdfdf; --scroll-a:#c0c0c0; --scroll-b:#c0c0c0; --scroll-line:#000;
+}
+
+/* Startup, WA -- Windows 95. The gradient title bar, left-aligned. A real town,
+   and the only sensible name for the release that introduced the Start button. */
+[data-skin="startup"]{
+  --gear-radius:0;
+  --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
+  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+               inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
+  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --desk:#008080; --grain:none;
+  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
+  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+          inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
+  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff,
+             inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf;
+  --pane-inset:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;
+  --shadow:none; --lights:none;
+  --title-bg:linear-gradient(90deg,#000080,#1084d0); --title-ink:#fff;
+  --title-just:flex-start; --title-pad:0 6px; --title-h:20px; --title-weight:700;
+  --chrome-a:#c0c0c0; --chrome-b:#c0c0c0; --chrome-line:#808080; --chrome-ink:#000;
+  --win-line:#000;
+  --lcd-a:#c0c0c0; --lcd-b:#c0c0c0; --lcd-line:#808080; --lcd-ink:#000; --lcd-dim:#404040;
+  --bar-track:#fff; --bar-line:#808080; --bar-a:#000080; --bar-b:#1084d0;
+  --btn-a:#c0c0c0; --btn-b:#c0c0c0; --btn-line:#000; --btn-ink:#000;
+  --pane:#fff; --src-bg:#fff; --src-line:#808080;
+  --src-head-a:#c0c0c0; --src-head-b:#c0c0c0; --src-head-ink:#000;
+  --sel:#000080; --sel-ink:#fff;
+  --head-a:#c0c0c0; --head-b:#c0c0c0; --head-line:#808080; --head-ink:#000; --head-div:#dfdfdf;
+  --sorted-a:#dfdfdf; --sorted-b:#c0c0c0;
+  --stripe:#fff; --rowsel:#000080;
+  --scroll-track:#dfdfdf; --scroll-a:#c0c0c0; --scroll-b:#c0c0c0; --scroll-line:#808080;
+}
+
+/* Chelan, WA -- Windows XP Luna. Deep lake blue, and the beige workspace that
+   came with it. Rounded again, but only at the top.                          */
+[data-skin="chelan"]{
+  --gear-radius:3px;
+  --vlc-a:#5b9bd5; --vlc-b:#2a6db5; --vlc-line:#1c4f8a; --vlc-ink:#fff;
+  --vlc-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.3);
+  --font:Tahoma,"Segoe UI",Verdana,sans-serif;
+  --desk:linear-gradient(#4a7ec4,#7aa8dc) fixed; --grain:none;
+  --radius:8px 8px 0 0; --lcd-radius:3px; --btn-radius:4px; --field-radius:3px;
+  --bevel:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.25);
+  --bevel-in:inset 0 2px 4px rgba(0,0,0,.28);
+  --pane-inset:inset 0 1px 3px rgba(0,0,0,.22);
+  --shadow:0 10px 30px rgba(0,0,0,.4); --lights:none;
+  --title-bg:linear-gradient(#0a55d4,#3a86e8 8%,#2c76dc 40%,#1a5fd0); --title-ink:#fff;
+  --title-just:flex-start; --title-pad:0 10px; --title-h:26px; --title-weight:700;
+  --chrome-a:#f6f4ec; --chrome-b:#ece9d8; --chrome-line:#aca899; --chrome-ink:#22314a;
+  --win-line:#0a3f9c;
+  --lcd-a:#fbfaf6; --lcd-b:#ece9d8; --lcd-line:#aca899; --lcd-ink:#1b2740; --lcd-dim:#5a6478;
+  --bar-track:#e6e3d4; --bar-line:#aca899; --bar-a:#4f9d3a; --bar-b:#2f7a20;
+  --btn-a:#fdfdfb; --btn-b:#e8e5d6; --btn-line:#a9a596; --btn-ink:#22314a;
+  --pane:#fff; --src-bg:#eef3fb; --src-line:#a7b6cc;
+  --src-head-a:#f6f4ec; --src-head-b:#e4e0cf; --src-head-ink:#3b4a63;
+  --sel:#316ac5; --sel-ink:#fff;
+  --head-a:#fbfaf6; --head-b:#e8e5d6; --head-line:#aca899; --head-ink:#22314a; --head-div:#d4d0c0;
+  --sorted-a:#dbe6f8; --sorted-b:#bed3f2;
+  --stripe:#f3f6fc; --rowsel:#c1d7f5;
+  --scroll-track:#f1efe4; --scroll-a:#dfeaf8; --scroll-b:#9dbbe4; --scroll-line:#7f9ec9;
+}
+
+/* Boring, OR -- Hot Dog Stand. The Windows 3.1 scheme nobody chose on purpose:
+   red, yellow, black, and no mercy. The town is real and the name is the joke. */
+[data-skin="boring"]{
+  --gear-radius:0;
+  --vlc-a:#ffff00; --vlc-b:#ffff00; --vlc-line:#000; --vlc-ink:#000;
+  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #ffff00;
+  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --desk:#ff0000; --grain:none; --ink:#000;
+  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
+  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #ffff00;
+  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #ffff00;
+  --pane-inset:inset 1px 1px 0 #000;
+  --shadow:none; --lights:none;
+  --title-bg:linear-gradient(#ffff00,#ffff00); --title-ink:#000;
+  --title-just:center; --title-h:20px; --title-weight:700;
+  --chrome-a:#ff0000; --chrome-b:#ff0000; --chrome-line:#000; --chrome-ink:#ffff00;
+  --win-line:#000;
+  --lcd-a:#ffff00; --lcd-b:#ffff00; --lcd-line:#000; --lcd-ink:#000; --lcd-dim:#800000;
+  --bar-track:#ffff00; --bar-line:#000; --bar-a:#ff0000; --bar-b:#ff0000;
+  --btn-a:#ffff00; --btn-b:#ffff00; --btn-line:#000; --btn-ink:#000;
+  --pane:#ffff00; --src-bg:#ffff00; --src-line:#000;
+  --src-head-a:#ff0000; --src-head-b:#ff0000; --src-head-ink:#ffff00;
+  --sel:#ff0000; --sel-ink:#ffff00;
+  --head-a:#ff0000; --head-b:#ff0000; --head-line:#000; --head-ink:#ffff00; --head-div:#000;
+  --sorted-a:#ffff00; --sorted-b:#ffff00;
+  --stripe:#ffe000; --rowsel:#ff0000;
+  --scroll-track:#ffff00; --scroll-a:#ff0000; --scroll-b:#ff0000; --scroll-line:#000;
+}
+
 /* ---- Layout ---------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{background:var(--desk);
-     font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Arial,sans-serif;
-     color:#000;display:flex;align-items:center;justify-content:center;padding:14px;
+body{background:var(--desk);font:11px/1.35 var(--font);
+     color:var(--ink);display:flex;align-items:center;justify-content:center;padding:14px;
      -webkit-font-smoothing:antialiased}
 
 .metal{background-image:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b))}
 
 .win{width:100%;max-width:1180px;height:100%;max-height:820px;display:flex;flex-direction:column;
-     border:1px solid var(--win-line);border-radius:7px;overflow:hidden;
-     box-shadow:0 12px 34px rgba(0,0,0,.45)}
+     border:1px solid var(--win-line);border-radius:var(--radius);overflow:hidden;
+     box-shadow:var(--shadow)}
 
-.title{height:22px;flex:none;display:flex;align-items:center;justify-content:center;
-       border-bottom:1px solid var(--chrome-line);font-weight:600;color:var(--chrome-ink);
-       font-size:12px;position:relative}
-.lights{position:absolute;left:8px;display:flex;gap:6px}
+.title{height:var(--title-h);flex:none;display:flex;align-items:center;
+       justify-content:var(--title-just);padding:var(--title-pad);
+       background-image:var(--title-bg);
+       border-bottom:1px solid var(--chrome-line);font-weight:var(--title-weight);
+       color:var(--title-ink);font-size:12px;position:relative}
+.lights{position:absolute;left:8px;display:var(--lights);gap:6px}
 .lights i{width:11px;height:11px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.35)}
 .lights i:nth-child(1){background:radial-gradient(circle at 35% 30%,#ff9a90,#e04f43)}
 .lights i:nth-child(2){background:radial-gradient(circle at 35% 30%,#ffd479,#e0a234)}
 .lights i:nth-child(3){background:radial-gradient(circle at 35% 30%,#a8e57f,#4fa42f)}
 
 .transport{flex:none;display:flex;align-items:center;gap:7px}
-.tbtn{width:29px;height:29px;border-radius:50%;border:1px solid var(--btn-line);cursor:pointer;
+.tbtn{width:29px;height:29px;border-radius:var(--btn-radius);
+  border:1px solid var(--btn-line);cursor:pointer;
   display:flex;align-items:center;justify-content:center;padding:0;
-  background:linear-gradient(var(--btn-a),var(--btn-b));
-  box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28)}
+  background:linear-gradient(var(--btn-a),var(--btn-b));box-shadow:var(--bevel)}
 .tbtn.big{width:39px;height:39px}
 .tbtn:hover{filter:brightness(1.06)}
-.tbtn:active{filter:brightness(.9);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
+.tbtn:active{filter:brightness(.9);box-shadow:var(--bevel-in)}
 .tbtn:disabled{opacity:.4;cursor:default}
 .tbtn svg{fill:var(--btn-ink);pointer-events:none}
 .vol{width:74px;margin-left:4px;accent-color:var(--btn-ink)}
@@ -237,29 +381,28 @@ body{background:var(--desk);
 .row.playing .c-name::before{content:"\25B6";font-size:8px;margin-right:5px;color:var(--sel)}
 
 .playbtn{flex:none;display:flex;align-items:center;gap:8px;height:30px;
-  padding:0 14px 0 11px;border-radius:15px;cursor:pointer;font-size:11px;
-  border:1px solid #2f2f2f;color:#f4f4f4;font:600 12px "Lucida Grande",sans-serif;
-  background:linear-gradient(#6f6f6f 0%,#575757 48%,#454545 52%,#3a3a3a 100%);
-  text-shadow:0 -1px 0 rgba(0,0,0,.55);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px rgba(0,0,0,.4)}
-.playbtn:hover{background:linear-gradient(#7d7d7d 0%,#636363 48%,#505050 52%,#454545 100%)}
-.playbtn:active{background:linear-gradient(#3a3a3a,#565656);
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+  padding:0 14px 0 11px;border-radius:var(--field-radius);cursor:pointer;font-size:11px;
+  border:1px solid var(--vlc-line);color:var(--vlc-ink);font:600 12px var(--font);
+  background:linear-gradient(var(--vlc-a),var(--vlc-b));
+  text-shadow:0 -1px 0 rgba(0,0,0,.25);box-shadow:var(--vlc-shadow)}
+.playbtn:hover{filter:brightness(1.1)}
+.playbtn:active{filter:brightness(.85);box-shadow:var(--bevel-in)}
 .playbtn:disabled{opacity:.45;cursor:default}
-.playbtn svg{flex:none;filter:drop-shadow(0 -1px 0 rgba(0,0,0,.5))}
+.playbtn svg{flex:none;fill:var(--vlc-ink)}
 
 .top{flex:none;display:flex;align-items:center;gap:14px;padding:9px 12px;
      border-bottom:1px solid var(--chrome-line)}
-.lcd{flex:1;height:66px;border-radius:9px;
+.lcd{flex:1;height:66px;border-radius:var(--lcd-radius);
      background:linear-gradient(var(--lcd-a),var(--lcd-b));
-     border:1px solid var(--lcd-line);box-shadow:inset 0 1px 3px rgba(0,0,0,.3);
+     border:1px solid var(--lcd-line);box-shadow:var(--pane-inset);
      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
      text-shadow:0 1px 0 rgba(255,255,255,.4);overflow:hidden;padding:0 12px}
 #lcdName{font-weight:600;font-size:12px;color:var(--lcd-ink);white-space:nowrap;
          overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #lcdSub{font-size:10px;color:var(--lcd-dim);font-variant-numeric:tabular-nums}
 .searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
-#search{width:190px;height:20px;border-radius:10px;border:1px solid #8f8f8f;padding:0 22px 0 22px;
+#search{width:190px;height:20px;border-radius:var(--field-radius);
+        border:1px solid var(--lcd-line);color:var(--ink);padding:0 22px 0 22px;
         font:11px "Lucida Grande",sans-serif;background:#fff url("data:image/svg+xml;charset=utf8,\
 %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23888' \
 stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
@@ -300,8 +443,8 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .row{display:flex;height:17px;align-items:center;width:max-content;min-width:100%}
 .row:nth-child(even){background:var(--stripe)}
 .row.sel{background:var(--rowsel)}
-.row.ghost{color:#a0a0a0;font-style:italic}
-.row.ghost.sel{color:#5a5a5a}
+.row.ghost{opacity:.55;font-style:italic}
+.row.ghost.sel{opacity:.8}
 .found-gone,.found-ambiguous{color:#b23b3b;font-style:normal}
 .found-moved,.found-by-size{color:#8a6d1f;font-style:normal}
 .row div{padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -335,7 +478,8 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
         border-top:1px solid #fff;font-size:10px;color:var(--chrome-ink);
         text-shadow:0 1px 0 rgba(255,255,255,.5);position:relative}
 .gear{position:absolute;right:6px;top:50%;transform:translateY(-50%);
-      width:17px;height:17px;border-radius:4px;border:1px solid var(--btn-line);
+      width:17px;height:17px;border-radius:var(--gear-radius);
+      border:1px solid var(--btn-line);
       background:linear-gradient(var(--btn-a),var(--btn-b));cursor:pointer;
       display:flex;align-items:center;justify-content:center;padding:0}
 .gear:hover{filter:brightness(1.06)}
@@ -363,7 +507,11 @@ const KEY="playlists.columns", SKINKEY="playlists.skin";
 // tab bar, so they are deliberately absent rather than faked.
 const SKINS=[["greenwood","Greenwood","iTunes 1-4"],
              ["tofino","Tofino","iTunes 5-6"],
-             ["kaslo","Kaslo","iTunes 7-10"]];
+             ["kaslo","Kaslo","iTunes 7-10"],
+             ["concrete","Concrete","Windows 3.1"],
+             ["startup","Startup","Windows 95"],
+             ["chelan","Chelan","Windows XP"],
+             ["boring","Boring","Hot Dog Stand"]];
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
@@ -670,7 +818,7 @@ def write_page(out_dir, n_playlists, n_refs):
     <div class="searchwrap">
       <button class="playbtn" id="play" title="Open this view in VLC instead">
         <svg width="11" height="12" viewBox="0 0 15 16" aria-hidden="true">
-          <path d="M2 1.4v13.2L13.2 8z" fill="#fff"/></svg>
+          <path d="M2 1.4v13.2L13.2 8z"/></svg>
         <span id="playLabel">Play in VLC</span>
       </button>
       <input id="search" type="search" placeholder="Search" autocomplete="off">
