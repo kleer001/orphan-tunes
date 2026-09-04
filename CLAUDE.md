@@ -22,6 +22,10 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   Imports `locate` and `safe_name` rather than reimplementing them; if track
   resolution changes, it changes in one place.
 - `serve.py` — static server plus `POST /play`.
+- `tools/demangle.py` — standalone archive repair, unrelated to the browser. It
+  takes its root as a required argument and never reads `config.toml`: this
+  renames files, and a destructive tool that runs with no arguments is one
+  keystroke from being pointed at the wrong tree.
 
 ## Track resolution
 
@@ -56,12 +60,32 @@ adding one row there — the page builds its columns from the data.
 Only genuine plumbing is excluded: `Track ID`, `Persistent ID`, `Location`,
 `Track Type`, the folder-count pair, the `Sort *` keys, the `* Computed` flags.
 
+## demangle's safety properties
+
+All four are covered by `tests/test_demangle.py` and are the point of the tool:
+
+1. Only acts when the target name is held by an *empty* directory.
+2. `rmdir` clears the placeholder, so nothing with content can be removed.
+3. `os.rename` (never `mv`) — it fails rather than moving a file *into* a
+   directory.
+4. All-or-nothing: any conflict in the plan means no renames at all.
+
+The journal is the only undo, so it is opened `"x"` under a timestamped name; a
+second run must never truncate an earlier one. That regression shipped once and
+now has three tests on it.
+
 ## Testing
 
 Tests live in `tests/`. The generators are verifiable against real output: track
 counts, resolution rates, and the `.m3u8` line count should match what the
 scripts report. When changing layout, measure the DOM rather than judging from a
 screenshot — column widths and scroll behaviour are easy to misread by eye.
+
+Tests on destructive behaviour are worth mutating to check they bite: break a
+guard on purpose and confirm the suite fails. One test here passed against a
+broken build because the crash message happened to contain the string it matched
+for, which is why the refusal tests now assert on `REFUSING TO RUN` and the
+absence of a traceback.
 
 ## Code style
 

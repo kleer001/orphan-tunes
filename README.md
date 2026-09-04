@@ -80,9 +80,31 @@ indices outside the pool are refused. The server binds to `127.0.0.1`.
 | `make_playlists.py` | library XML → `.m3u8` files |
 | `build_browser.py` | library XML → `index.html`, `data.json`, `paths.json` |
 | `serve.py` | static server plus the `/play` endpoint |
+| `tools/demangle.py` | repairs an archive copy whose filenames were mangled |
 
 `build_browser.py` imports `locate()` and `safe_name()` from `make_playlists.py`
 so both agree on where a track lives and what its playlist file is called.
+
+## `tools/demangle.py`
+
+Some archive copies arrive with every filename mangled: the real file saved with
+`-2` appended to its stem, and an empty directory left holding the name it
+wanted. A library XML can't resolve against a tree in that state.
+
+```bash
+python tools/demangle.py /path/to/music            # plan only, changes nothing
+python tools/demangle.py /path/to/music --apply    # execute, journalling each rename
+python tools/demangle.py --undo <journal>          # reverse it
+```
+
+It only ever acts on a pair whose target name is held by an **empty directory**,
+so a file genuinely named `Track-2.mp3` is reported and skipped. `rmdir` clears
+the placeholder — it physically cannot remove a directory with anything in it —
+and `os.rename` then moves the file onto the freed name. If the plan contains any
+conflict at all, nothing runs: a half-finished pass over tens of thousands of
+files is worse than one that declines to start.
+
+Every rename is journalled, and `--undo` reverses the whole run.
 
 ## Limits
 
