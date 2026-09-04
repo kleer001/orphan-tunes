@@ -14,8 +14,8 @@ import plistlib
 import sys
 from collections import defaultdict
 
-from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT, PLAYLIST_DIR
-from make_playlists import locate, safe_name  # the .m3u8 writer's own lookup + naming
+from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
+from make_playlists import locate  # the .m3u8 writer's own file lookup
 
 # Every field worth showing, in iTunes' own column order. "plumbing" fields
 # (Track ID, Location, Persistent ID, the Sort* sort keys, the *Computed flags)
@@ -87,13 +87,13 @@ def build_data(out_dir):
             return 1 if v else 0
         return v
 
-    def track_index(track, path):
+    def track_index(track, path, how):
         """Intern a track into the shared pool; playlists store only offsets."""
         key = track["Track ID"]
         if key not in seen:
             seen[key] = len(pool)
-            pool.append([cell(track, k, kind) for k, _, kind, _ in FIELDS])
-            paths.append(path)
+            pool.append([cell(track, k, kind) for k, _, kind, _ in FIELDS] + [how])
+            paths.append(path)          # None when the file could not be found
         return seen[key]
 
     for playlist in lib["Playlists"]:
@@ -105,30 +105,18 @@ def build_data(out_dir):
             track = tracks.get(str(item["Track ID"]))
             if not track or not track.get("Location"):
                 continue
-            path, _ = locate(track, index)
-            if path:
-                ids.append(track_index(track, path))
-            else:
+            path, how = locate(track, index)
+            if not path:
                 missing += 1
+            ids.append(track_index(track, path, how))
         if ids:
             playlists.append({"name": playlist["Name"], "ids": ids})
 
     playlists.sort(key=lambda p: p["name"].lower())
 
-    # Point each playlist at the .m3u8 make_playlists.py wrote, so the Play
-    # button can hand VLC a real file. Missing ones simply get no button.
-    taken, absent = set(), 0
-    for entry in playlists:
-        m3u8 = safe_name(entry["name"], taken) + ".m3u8"
-        if os.path.isfile(os.path.join(PLAYLIST_DIR, m3u8)):
-            entry["m3u8"] = m3u8
-        else:
-            absent += 1
-    if absent:
-        print(f"  WARNING: {absent} playlists have no .m3u8 in {PLAYLIST_DIR}")
-
-    data = {"fields": [[label, kind, show] for _, label, kind, show in FIELDS],
-            "tracks": pool, "playlists": playlists}
+    fields = [[label, kind, show] for _, label, kind, show in FIELDS]
+    fields.append(["Found", "found", False])   # derived, not from the library
+    data = {"fields": fields, "tracks": pool, "playlists": playlists}
     path = os.path.join(out_dir, "data.json")
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, separators=(",", ":"))
@@ -140,7 +128,7 @@ def build_data(out_dir):
 
     refs = sum(len(p["ids"]) for p in playlists)
     print(f"  {len(playlists)} playlists, {refs} track refs, "
-          f"{len(pool)} unique tracks, {missing} not on disk")
+          f"{len(pool)} unique tracks, {missing} shown as missing")
     print(f"  data.json {os.path.getsize(path) / 1e6:.1f} MB")
     return len(playlists), refs
 
@@ -237,6 +225,10 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .row{display:flex;height:17px;align-items:center;width:max-content;min-width:100%}
 .row:nth-child(even){background:#edf3fb}
 .row.sel{background:#b6c8de}
+.row.ghost{color:#a0a0a0;font-style:italic}
+.row.ghost.sel{color:#5a5a5a}
+.found-gone,.found-ambiguous{color:#b23b3b;font-style:normal}
+.found-moved,.found-by-size{color:#8a6d1f;font-style:normal}
 .row div{padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 
@@ -279,7 +271,7 @@ NOTE_SVG = ("<svg width='9' height='11' viewBox='0 0 9 11' fill='%233a6ea5'>"
 
 JS = r"""
 const $=s=>document.querySelector(s);
-let DATA=null,FIELDS=[],vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
+let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
 const KEY="playlists.columns";
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
@@ -288,7 +280,8 @@ const mb=b=>b>=1073741824?(b/1073741824).toFixed(2)+" GB":(b/1048576).toFixed(1)
 
 // iTunes stored ratings 0-100; five stars is 100.
 const stars=v=>v?"\u2605".repeat(Math.round(v/20)):"";
-function fmt(v,kind){
+function fmt(v,kind,gone){
+  if(gone&&(kind==="time"||kind==="size"))return "";
   if(v===""||v===0||v===null)return kind==="bool"?"":"";
   switch(kind){
     case "time":return mmss(v);
@@ -297,10 +290,15 @@ function fmt(v,kind){
     case "kbps":return v+" kbps";
     case "khz":return (v/1000).toFixed(1)+" kHz";
     case "bool":return v?"Yes":"";
+    case "found":return v==="direct"?""
+      :`<span class="found-${v.replace(/ /g,"-")}">${esc(v)}</span>`;
     default:return esc(String(v));
   }
 }
 const RIGHT=new Set(["time","size","int","kbps","khz"]);
+// locate() distinguishes why a track is unresolved; neither can be played
+const GONE=new Set(["gone","ambiguous"]);
+const missing=t=>GONE.has(t[FOUND]);
 function span(sec){
   const h=sec/3600;
   if(h>=1)return h.toFixed(1)+" hours";
@@ -343,22 +341,31 @@ function draw(){
     `<div class="${colClass(f,n)}${f===sortCol?" sorted"+(asc?" asc":""):""}" `+
     `data-c="${f}">${esc(FIELDS[f][0])}</div>`).join("");
   $("#rows").innerHTML=rows.length?rows.map((idx,i)=>{
-    const t=DATA.tracks[idx];
-    return `<div class="row${i===sel?" sel":""}" data-i="${i}">`+
-      vis.map((f,n)=>`<div class="${colClass(f,n)}">${fmt(t[f],FIELDS[f][1])}</div>`).join("")+
+    const t=DATA.tracks[idx], gone=missing(t);
+    return `<div class="row${i===sel?" sel":""}${gone?" ghost":""}" data-i="${i}">`+
+      vis.map((f,n)=>
+        `<div class="${colClass(f,n)}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
       `</div>`;}).join("")
     : `<div class="empty">Nothing matches.</div>`;
 
   const T=FIELDS.findIndex(f=>f[1]==="time"), S=FIELDS.findIndex(f=>f[1]==="size");
-  const secs=rows.reduce((a,i)=>a+DATA.tracks[i][T],0),
-        bytes=rows.reduce((a,i)=>a+DATA.tracks[i][S],0);
+  const here=rows.filter(i=>!missing(DATA.tracks[i]));
+  const gone=rows.length-here.length;
+  const secs=here.reduce((a,i)=>a+DATA.tracks[i][T],0),
+        bytes=here.reduce((a,i)=>a+DATA.tracks[i][S],0);
   $("#status").textContent=rows.length
-    ? `${songs(rows.length)}, ${span(secs)}, ${mb(bytes)}` : "no songs";
+    ? songs(here.length)+`, ${span(secs)}, ${mb(bytes)}`
+      +(gone?`   \u00b7   ${gone} missing`:"")
+    : "no songs";
   $("#count").textContent=rows.length===total?songs(total):`${rows.length} of ${total}`;
   $("#lcdName").textContent=DATA.playlists[cur].name;
-  $("#play").disabled=!rows.length;
-  $("#lcdSub").textContent=`${songs(total)} — ${span(DATA.playlists[cur].ids
-      .reduce((a,i)=>a+DATA.tracks[i][T],0))}`;
+  $("#play").disabled=!here.length;   // nothing playable, even if rows show
+  // the LCD covers the whole playlist, so it counts what is actually there
+  const all=DATA.playlists[cur].ids, playable=all.filter(i=>!missing(DATA.tracks[i]));
+  const absent=all.length-playable.length;
+  $("#lcdSub").textContent=songs(playable.length)
+    +` — ${span(playable.reduce((a,i)=>a+DATA.tracks[i][T],0))}`
+    +(absent?`   \u00b7   ${absent} missing`:"");
 }
 
 function saveCols(){try{localStorage.setItem(KEY,JSON.stringify(vis));}catch(e){}}
@@ -377,7 +384,7 @@ function buildOptions(){
 }
 
 function boot(){
-  FIELDS=DATA.fields; vis=loadCols();
+  FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
   drawSources();buildOptions();draw();
 
   $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
@@ -397,7 +404,8 @@ function boot(){
     try{
       const r=await fetch("play",{method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name:pl.name,indices:rows})});
+        body:JSON.stringify({name:pl.name,
+          indices:rows.filter(i=>!missing(DATA.tracks[i]))})});
       if(!r.ok)msg=(await r.json()).error||"Failed";
     }catch(e){ msg="Server not running"; }
     label.textContent=msg==="Play in VLC"?"Playing\u2026":msg;
