@@ -7,11 +7,8 @@ script's structure. Actual playback (wrapping, looping, shuffling) is exercised
 in the browser, not here.
 """
 
-import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from build_browser import JS, REPEAT_CYCLE  # noqa: E402
+from build_browser import JS, REPEAT_CYCLE
 
 
 def test_the_page_uses_the_cycle_it_was_given():
@@ -26,8 +23,11 @@ def test_repeat_one_loops_the_element_rather_than_restarting():
 
 
 def test_running_off_either_end_checks_the_mode_before_wrapping():
-    assert JS.count('repeatMode!=="all"') == 2, "both ends must check"
-    assert "at=queue.length-1" in JS and "at=0" in JS, "both ends must wrap"
+    """One guard and one modulo cover both ends; an earlier version of this test
+    counted the two mirrored branches, so simplifying the code failed it."""
+    assert 'repeatMode!=="all"' in JS, "the mode must be consulted before wrapping"
+    assert "stop()" in JS, "without repeat it has to stop"
+    assert "(at+queue.length)%queue.length" in JS, "the wrap must cover both ends"
 
 
 def test_the_queue_is_not_rebuilt_unless_the_visible_set_changed():

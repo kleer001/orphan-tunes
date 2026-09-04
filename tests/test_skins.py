@@ -6,11 +6,8 @@ an unrelated ["off","all","one"] and reported it as a skin, and a declaration
 splitter that did not strip comments failed a skin for containing one.
 """
 
-import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from build_browser import BASE_TOKENS, REPEAT_CYCLE, SKINS, render_skins  # noqa: E402
+from build_browser import BASE_TOKENS, REPEAT_CYCLE, SKINS, render_skins
 
 BASE = SKINS[0]
 

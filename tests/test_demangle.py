@@ -10,12 +10,10 @@ import subprocess
 import sys
 
 import pytest
+from demangle import build_plan, target_of
 
 TOOL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "tools", "demangle.py")
-
-sys.path.insert(0, os.path.dirname(TOOL))
-from demangle import build_plan, target_of  # noqa: E402
 
 
 @pytest.fixture

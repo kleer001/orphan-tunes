@@ -12,11 +12,10 @@ import json
 import os
 import plistlib
 import sys
-from collections import defaultdict
 from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
-from make_playlists import locate  # the .m3u8 writer's own file lookup
+from make_playlists import index_by_name, locate  # the .m3u8 writer's own
 
 # Every field worth showing, in iTunes' own column order. "plumbing" fields
 # (Track ID, Location, Persistent ID, the Sort* sort keys, the *Computed flags)
@@ -53,19 +52,6 @@ FIELDS = [
     ("Skip Count",     "Skips",       "int",  False),
     ("Skip Date",      "Last Skipped", "date", False),
 ]
-
-AUDIO = {".mp3", ".m4a", ".wav", ".mp4", ".aif", ".aiff",
-         ".mpga", ".m4b", ".flac", ".ogg", ".mov", ".m4v"}
-
-
-def index_by_name(root):
-    index = defaultdict(list)
-    for dirpath, _, filenames in os.walk(root):
-        for name in filenames:
-            if os.path.splitext(name)[1].lower() in AUDIO:
-                index[name.lower()].append(os.path.join(dirpath, name))
-    return index
-
 
 def build_data(out_dir):
     with open(LIBRARY, "rb") as fh:
@@ -288,7 +274,6 @@ SKINS = [
              "--scroll-line": "#7d90a5",
              "--scroll-track": "#e8edf2",
              "--sel": "#4a7fc1",
-             "--sel-ink": "#fff",
              "--sorted-a": "#dde8f6",
              "--sorted-b": "#c4d6ec",
              "--src-bg": "#dfe6ee",
@@ -335,7 +320,6 @@ SKINS = [
              "--lcd-line": "#808080",
              "--lcd-radius": "0",
              "--lights": "none",
-             "--pane": "#fff",
              "--pane-inset": "inset 1px 1px 0 #808080,inset -1px -1px 0 #fff",
              "--radius": "0",
              "--rowsel": "#000080",
@@ -344,11 +328,9 @@ SKINS = [
              "--scroll-line": "#000",
              "--scroll-track": "#dfdfdf",
              "--sel": "#000080",
-             "--sel-ink": "#fff",
              "--shadow": "none",
              "--sorted-a": "#a0a0a0",
              "--sorted-b": "#a0a0a0",
-             "--src-bg": "#fff",
              "--src-head-a": "#c0c0c0",
              "--src-head-b": "#c0c0c0",
              "--src-head-ink": "#000",
@@ -357,7 +339,6 @@ SKINS = [
              "--title-bg": "linear-gradient(#000080,#000080)",
              "--title-h": "20px",
              "--title-ink": "#fff",
-             "--title-just": "center",
              "--title-weight": "700",
              "--vlc-a": "#c0c0c0",
              "--vlc-b": "#c0c0c0",
@@ -402,7 +383,6 @@ SKINS = [
              "--lcd-line": "#808080",
              "--lcd-radius": "0",
              "--lights": "none",
-             "--pane": "#fff",
              "--pane-inset": "inset 1px 1px 0 #808080,inset -1px -1px 0 #fff",
              "--radius": "0",
              "--rowsel": "#000080",
@@ -411,11 +391,9 @@ SKINS = [
              "--scroll-line": "#808080",
              "--scroll-track": "#dfdfdf",
              "--sel": "#000080",
-             "--sel-ink": "#fff",
              "--shadow": "none",
              "--sorted-a": "#dfdfdf",
              "--sorted-b": "#c0c0c0",
-             "--src-bg": "#fff",
              "--src-head-a": "#c0c0c0",
              "--src-head-b": "#c0c0c0",
              "--src-head-ink": "#000",
@@ -470,7 +448,6 @@ SKINS = [
              "--lcd-line": "#aca899",
              "--lcd-radius": "3px",
              "--lights": "none",
-             "--pane": "#fff",
              "--pane-inset": "inset 0 1px 3px rgba(0,0,0,.22)",
              "--radius": "8px 8px 0 0",
              "--rowsel": "#c1d7f5",
@@ -479,7 +456,6 @@ SKINS = [
              "--scroll-line": "#7f9ec9",
              "--scroll-track": "#f1efe4",
              "--sel": "#316ac5",
-             "--sel-ink": "#fff",
              "--shadow": "0 10px 30px rgba(0,0,0,.4)",
              "--sorted-a": "#dbe6f8",
              "--sorted-b": "#bed3f2",
@@ -562,7 +538,6 @@ SKINS = [
              "--title-bg": "linear-gradient(#ff4422,#e00000 45%,#c00000)",
              "--title-h": "20px",
              "--title-ink": "#ffff00",
-             "--title-just": "center",
              "--title-weight": "700",
              "--vlc-a": "#ff5522",
              "--vlc-b": "#c00000",
@@ -630,7 +605,6 @@ SKINS = [
              "--title-bg": "linear-gradient(90deg,#ff00cc,#ffee00 20%,#00ff66 40%,#00e5ff 60%,#7a00ff 80%,#ff00cc)",  # noqa: E501
              "--title-h": "24px",
              "--title-ink": "#000",
-             "--title-just": "center",
              "--title-weight": "700",
              "--vlc-a": "#00ff66",
              "--vlc-b": "#00a3ff",
@@ -833,12 +807,13 @@ JS = r"""
 const $=s=>document.querySelector(s);
 let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
 // what is playing, as a pool index, plus the queue it came from
-let nowIdx=-1,queue=[],qpos=-1,queueKey="";
+let nowIdx=-1,queue=[],qpos=-1,queueKey="",lcdFor=-1,lcdText="";
 let shuffleOn=false,repeatMode="off";      // off | all | one
 const MODEKEY="playlists.modes";
 const KEY="playlists.columns", SKINKEY="playlists.skin";
 
-const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+const mmss=s=>isFinite(s)
+  ? `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}` : "";
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
 const mb=b=>b>=1073741824?(b/1073741824).toFixed(2)+" GB":(b/1048576).toFixed(1)+" MB";
 
@@ -863,6 +838,8 @@ const RIGHT=new Set(["time","size","int","kbps","khz"]);
 // locate() distinguishes why a track is unresolved; neither can be played
 const GONE=new Set(["gone","ambiguous"]);
 const missing=t=>GONE.has(t[FOUND]);
+// The visible rows minus the ones with no file. Four call sites wanted this.
+const playable=()=>rows.filter(i=>!missing(DATA.tracks[i]));
 function span(sec){
   const h=sec/3600;
   if(h>=1)return h.toFixed(1)+" hours";
@@ -902,20 +879,21 @@ function draw(){
   rows=current();
   syncQueue();
   const total=DATA.playlists[cur].ids.length;
+  const cls=vis.map(colClass);          // once per column, not once per cell
   $("#thead").innerHTML=vis.map((f,n)=>
-    `<div class="${colClass(f,n)}${f===sortCol?" sorted"+(asc?" asc":""):""}" `+
+    `<div class="${cls[n]}${f===sortCol?" sorted"+(asc?" asc":""):""}" `+
     `data-c="${f}">${esc(FIELDS[f][0])}</div>`).join("");
   $("#rows").innerHTML=rows.length?rows.map((idx,i)=>{
     const t=DATA.tracks[idx], gone=missing(t);
     return `<div class="row${i===sel?" sel":""}${gone?" ghost":""}`+
       `${idx===nowIdx?" playing":""}" data-i="${i}">`+
       vis.map((f,n)=>
-        `<div class="${colClass(f,n)}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
+        `<div class="${cls[n]}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
       `</div>`;}).join("")
     : `<div class="empty">Nothing matches.</div>`;
 
   const T=FIELDS.findIndex(f=>f[1]==="time"), S=FIELDS.findIndex(f=>f[1]==="size");
-  const here=rows.filter(i=>!missing(DATA.tracks[i]));
+  const here=playable();
   const gone=rows.length-here.length;
   const secs=here.reduce((a,i)=>a+DATA.tracks[i][T],0),
         bytes=here.reduce((a,i)=>a+DATA.tracks[i][S],0);
@@ -927,12 +905,17 @@ function draw(){
   $("#lcdName").textContent=nowIdx>=0
     ? label(DATA.tracks[nowIdx]) : DATA.playlists[cur].name;
   $("#play").disabled=!here.length;   // nothing playable, even if rows show
-  // the LCD covers the whole playlist, so it counts what is actually there
-  const all=DATA.playlists[cur].ids, playable=all.filter(i=>!missing(DATA.tracks[i]));
-  const absent=all.length-playable.length;
-  $("#lcdSub").textContent=songs(playable.length)
-    +` — ${span(playable.reduce((a,i)=>a+DATA.tracks[i][T],0))}`
-    +(absent?`   \u00b7   ${absent} missing`:"");
+  // the LCD covers the whole playlist, not the filtered view, so it only
+  // changes when the playlist does -- no need to re-total it on every keystroke
+  if(cur!==lcdFor){
+    lcdFor=cur;
+    const all=DATA.playlists[cur].ids, live=all.filter(i=>!missing(DATA.tracks[i]));
+    const absent=all.length-live.length;
+    lcdText=songs(live.length)
+      +` — ${span(live.reduce((a,i)=>a+DATA.tracks[i][T],0))}`
+      +(absent?`   \u00b7   ${absent} missing`:"");
+  }
+  $("#lcdSub").textContent=lcdText;
 }
 
 function saveCols(){try{localStorage.setItem(KEY,JSON.stringify(vis));}catch(e){}}
@@ -949,7 +932,7 @@ function loadModes(){
     const m=JSON.parse(localStorage.getItem(MODEKEY));
     if(m&&typeof m==="object"){
       shuffleOn=!!m.shuffle;
-      if(["off","all","one"].includes(m.repeat))repeatMode=m.repeat;
+      if(m.repeat in REPEAT)repeatMode=m.repeat;
     }
   }catch(e){}
 }
@@ -997,7 +980,10 @@ function buildOptions(){
 }
 
 const audio=$("#audio");
-const clock=s=>isFinite(s)?`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`:"";
+// paint() fires on every timeupdate, so these are resolved once rather than
+// looked up four times a second for the life of the page.
+let el={};
+let painted={on:null,elapsed:"",left:"",ends:null};
 
 function label(t){
   const artist=t[2]||t[8];
@@ -1021,11 +1007,11 @@ function shuffled(list,first){
 /* The queue is the visible rows. Rebuild it only when that *set* changes --
    selecting a row or retyping the same search must not reshuffle underfoot. */
 function syncQueue(force){
-  const playable=rows.filter(i=>!missing(DATA.tracks[i]));
-  const key=playable.join(",");
+  const list=playable();
+  const key=list.join(",");
   if(!force&&key===queueKey)return;
   queueKey=key;
-  queue=shuffleOn?shuffled(playable,nowIdx>=0?nowIdx:undefined):playable;
+  queue=shuffleOn?shuffled(list,nowIdx>=0?nowIdx:undefined):list;
   qpos=queue.indexOf(nowIdx);
 }
 
@@ -1035,7 +1021,6 @@ function play(poolIndex){
   nowIdx=poolIndex;
   syncQueue(true);
   qpos=queue.indexOf(poolIndex);
-  audio.loop=(repeatMode==="one");
   audio.src="audio?i="+poolIndex;
   audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
   draw();
@@ -1044,12 +1029,9 @@ function play(poolIndex){
 function step(by){
   if(!queue.length)return;
   let at=qpos+by;
-  if(at>=queue.length){
+  if(at<0||at>=queue.length){
     if(repeatMode!=="all"){stop();return;}
-    at=0;
-  }else if(at<0){
-    if(repeatMode!=="all"){stop();return;}
-    at=queue.length-1;
+    at=(at+queue.length)%queue.length;
   }
   play(queue[at]);
 }
@@ -1063,18 +1045,29 @@ function lcd(msg){ $("#lcdName").textContent=msg; }
 
 function paint(){
   const on=nowIdx>=0&&!audio.paused;
-  $("#toggleIcon").innerHTML=on
-    ? '<path d="M2 1h3.5v12H2zM7.5 1H11v12H7.5z"/>'
-    : '<path d="M2 1v12l9.5-6z"/>';
-  $("#toggle").title=on?"Pause":"Play";
+  if(on!==painted.on){                  // play state holds for a whole track
+    painted.on=on;
+    el.toggleIcon.innerHTML=on
+      ? '<path d="M2 1h3.5v12H2zM7.5 1H11v12H7.5z"/>'
+      : '<path d="M2 1v12l9.5-6z"/>';
+    el.toggle.title=on?"Pause":"Play";
+  }
+  const ends=nowIdx<0;
+  if(ends!==painted.ends){painted.ends=ends; el.prev.disabled=el.next.disabled=ends;}
+
   const d=audio.duration||0, c=audio.currentTime||0;
-  $("#barFill").style.width=d?`${100*c/d}%`:"0";
-  $("#elapsed").textContent=nowIdx>=0?clock(c):"";
-  $("#left").textContent=nowIdx>=0&&d?"-"+clock(d-c):"";
-  $("#prev").disabled=$("#next").disabled=nowIdx<0;
+  el.barFill.style.width=d?`${100*c/d}%`:"0";     // the only per-tick write
+
+  // the clocks read to the second but timeupdate fires about four times a
+  // second, so three writes in four would set the same string
+  const elapsed=nowIdx>=0?mmss(c):"", left=nowIdx>=0&&d?"-"+mmss(d-c):"";
+  if(elapsed!==painted.elapsed){painted.elapsed=elapsed; el.elapsed.textContent=elapsed;}
+  if(left!==painted.left){painted.left=left; el.left.textContent=left;}
 }
 
 function boot(){
+  for(const id of ["toggleIcon","toggle","barFill","elapsed","left","prev","next"])
+    el[id]=$("#"+id);
   FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
   applySkin(skinName()); buildPrefs(); loadModes(); paintModes();
   drawSources();buildOptions();draw();paint();
@@ -1085,13 +1078,16 @@ function boot(){
   $("#thead").onclick=e=>{const el=e.target.closest("div[data-c]");if(!el)return;
     const c=+el.dataset.c; asc=(c===sortCol)?!asc:true; sortCol=c; sel=-1; draw();};
   $("#rows").onclick=e=>{const el=e.target.closest(".row");if(!el)return;
-    sel=+el.dataset.i;draw();};
+    sel=+el.dataset.i;
+    // moving a highlight must not rebuild a thousand rows of innerHTML
+    $("#rows").querySelector(".row.sel")?.classList.remove("sel");
+    el.classList.add("sel");};
   $("#rows").ondblclick=e=>{const el=e.target.closest(".row");if(!el)return;
     play(rows[+el.dataset.i]);};
 
   $("#toggle").onclick=()=>{
     if(nowIdx<0){                       // nothing cued: start at the selection
-      const start=sel>=0?rows[sel]:rows.find(i=>!missing(DATA.tracks[i]));
+      const start=sel>=0?rows[sel]:playable()[0];
       if(start!==undefined)play(start);
       return;
     }
@@ -1137,7 +1133,7 @@ function boot(){
       const r=await fetch("play",{method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({name:pl.name,
-          indices:rows.filter(i=>!missing(DATA.tracks[i]))})});
+          indices:playable()})});
       if(!r.ok)msg=(await r.json()).error||"Failed";
     }catch(e){ msg="Server not running"; }
     label.textContent=msg==="Play in VLC"?"Playing\u2026":msg;

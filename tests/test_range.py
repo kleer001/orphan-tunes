@@ -1,10 +1,7 @@
 """Seeking depends entirely on byte ranges being parsed correctly."""
 
-import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from serve import MIME, parse_range  # noqa: E402
+from serve import MIME, parse_range
 
 SIZE = 1000
 
