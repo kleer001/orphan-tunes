@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "you_tunes_browser"
 version = "0.1.0"
-description = "TODO: describe you_tunes_browser"
+description = "Rebuild iTunes playlists against the music files you still have"
 readme = "README.md"
 requires-python = ">=3.11"   # tomllib
 license = { text = "MIT" }
