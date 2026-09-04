@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "you_tunes_browser"
+name = "orphan-tunes"
 version = "0.1.0"
 description = "Rebuild iTunes playlists against the music files you still have"
 readme = "README.md"

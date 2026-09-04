@@ -1,0 +1,26 @@
+orphan-tunes
+Copyright (c) 2026 kleer001
+Licensed under the MIT License. See LICENSE.
+
+TRADEMARKS
+
+Not affiliated with, endorsed by, or sponsored by Apple Inc. or Microsoft
+Corporation.
+
+iTunes and Mac OS are trademarks of Apple Inc. Windows is a trademark of
+Microsoft Corporation. MySpace is a trademark of its respective owner. These
+names appear here only to describe what this software reads and what its
+optional themes resemble, which is nominative use.
+
+NO THIRD-PARTY CODE OR ASSETS
+
+This project contains no source code, artwork, icons, fonts or other assets from
+Apple, Microsoft or any other company. The interface themes are built entirely
+from CSS colour and geometry values written for this project. Where a theme
+resembles a historical interface, that resemblance is achieved with original
+values, not with copied material.
+
+The library format this software reads is Apple's XML property list, parsed with
+Python's standard-library `plistlib`. No Apple software, framework or API is
+used, and nothing is reverse-engineered or circumvented: the file being read is
+one the user already has on their own disk.

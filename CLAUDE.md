@@ -1,4 +1,4 @@
-# you_tunes_browser
+# orphan-tunes
 
 Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
 `iTunes Music Library.xml` plus the local audio files. Local only — no network.

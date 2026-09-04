@@ -1,4 +1,4 @@
-# you_tunes_browser
+# orphan-tunes
 
 ### The playlists survived. The paths didn't.
 
@@ -47,6 +47,9 @@ They're named for real towns in British Columbia, Washington and Oregon, which
 is how a Windows 3.1 tribute ends up called Concrete. Boring is a real town too.
 It's next to Damascus.
 
+Every skin is built from colour values written from scratch. No Apple or
+Microsoft artwork, icons or fonts are copied or shipped.
+
 ## Status
 
 **0.1.0 alpha.** This has worked exactly once, on one large library, on Linux.
@@ -57,5 +60,10 @@ If yours came off Windows, expect the path remapping to need a nudge. It's the
 part most likely to break. Worth an issue if it does.
 
 ---
+
+Not affiliated with, endorsed by, or sponsored by Apple Inc. or Microsoft
+Corporation. iTunes is a trademark of Apple Inc.; Windows is a trademark of
+Microsoft Corporation. This reads library files you already own and contains no
+code or assets from either company.
 
 [How it works](docs/how-it-works.md) · Python 3.11+, no dependencies · MIT
