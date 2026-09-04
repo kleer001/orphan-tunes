@@ -134,23 +134,80 @@ def build_data(out_dir):
 
 
 CSS = r"""
+/* ---- Skins ------------------------------------------------------------
+   Each era is a swap of these tokens. Only the eras that kept the same
+   two-pane layout are offered: iTunes 11 hid the sidebar and 12 moved to a
+   tab bar, so painting those colours on this layout would be a costume, not
+   a skin. Named for small towns in British Columbia.
+   Greenwood is the default and matches iTunes 1-4.                        */
+:root{
+  --desk:#6b6b6b;
+  --grain:repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(0,0,0,.035) 1px 2px);
+  --chrome-a:#e8e8e8; --chrome-b:#d0d0d0; --chrome-line:#a4a4a4; --chrome-ink:#3a3a3a;
+  --win-line:#6f6f6f;
+  --lcd-a:#d7dbcd; --lcd-b:#c9cebe; --lcd-line:#8e9384; --lcd-ink:#20241c; --lcd-dim:#4a5044;
+  --bar-track:#b9bfae; --bar-line:#949a8a; --bar-a:#8f9c82; --bar-b:#6f7c63;
+  --btn-a:#fdfdfd; --btn-b:#d7d7d7; --btn-line:#8d8d8d; --btn-ink:#3c3c3c;
+  --pane:#fff;
+  --src-bg:#fff; --src-line:#9a9a9a;
+  --src-head-a:#ededed; --src-head-b:#dcdcdc; --src-head-ink:#555;
+  --sel:#3a6ea5; --sel-ink:#fff;
+  --head-a:#f0f0f0; --head-b:#dadada; --head-line:#9a9a9a; --head-ink:#333; --head-div:#c4c4c4;
+  --sorted-a:#dfe7f2; --sorted-b:#c9d6e8;
+  --stripe:#edf3fb; --rowsel:#b6c8de;
+  --scroll-track:#f0f0f0; --scroll-a:#c8d4e4; --scroll-b:#9db2cc; --scroll-line:#7f92aa;
+}
+
+/* Tofino -- iTunes 5-6. The metal grain dropped for flat grey; coastal fog. */
+[data-skin="tofino"]{
+  --desk:#7a7a7a;
+  --grain:none;
+  --chrome-a:#f4f4f4; --chrome-b:#dedede; --chrome-line:#b0b0b0; --chrome-ink:#404040;
+  --win-line:#8a8a8a;
+  --lcd-a:#e4e6e4; --lcd-b:#d4d7d4; --lcd-line:#a6a9a6; --lcd-ink:#2a2c2a; --lcd-dim:#5b5f5b;
+  --bar-track:#c6c9c6; --bar-line:#a2a5a2; --bar-a:#9aa09a; --bar-b:#7d827d;
+  --btn-a:#fff; --btn-b:#e2e2e2; --btn-line:#a6a6a6;
+  --src-head-a:#f4f4f4; --src-head-b:#e6e6e6;
+  --head-a:#f7f7f7; --head-b:#e6e6e6; --head-line:#b4b4b4; --head-div:#d6d6d6;
+  --sorted-a:#e8eef6; --sorted-b:#d8e2ee;
+  --stripe:#f1f4f8; --rowsel:#c3d1e0;
+  --scroll-track:#f6f6f6; --scroll-a:#d8d8d8; --scroll-b:#b4b4b4; --scroll-line:#a0a0a0;
+}
+
+/* Kaslo -- iTunes 7-10. The blue sidebar era; lake water off the Kootenays. */
+[data-skin="kaslo"]{
+  --desk:#5f6672;
+  --grain:none;
+  --chrome-a:#e2e6ea; --chrome-b:#c8cfd6; --chrome-line:#9aa3ad; --chrome-ink:#333b44;
+  --win-line:#69737e;
+  --lcd-a:#dfe4e8; --lcd-b:#ccd3da; --lcd-line:#8f9aa4; --lcd-ink:#1e262e; --lcd-dim:#4d5761;
+  --bar-track:#bcc5cd; --bar-line:#93a0aa; --bar-a:#8497a8; --bar-b:#63788b;
+  --btn-a:#fff; --btn-b:#dbe1e7; --btn-line:#98a2ac;
+  --src-bg:#dfe6ee; --src-line:#a6b0bb;
+  --src-head-a:#e9eef4; --src-head-b:#d6dee7; --src-head-ink:#4a5560;
+  --sel:#4a7fc1; --sel-ink:#fff;
+  --head-a:#eef2f6; --head-b:#d9e0e8; --head-line:#a2acb6; --head-ink:#2f3841; --head-div:#c2ccd6;
+  --sorted-a:#dde8f6; --sorted-b:#c4d6ec;
+  --stripe:#eaf0f8; --rowsel:#b3c7de;
+  --scroll-track:#e8edf2; --scroll-a:#c2d0e0; --scroll-b:#96a9be; --scroll-line:#7d90a5;
+}
+
+/* ---- Layout ---------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{background:#6b6b6b;font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Arial,sans-serif;
+body{background:var(--desk);
+     font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Arial,sans-serif;
      color:#000;display:flex;align-items:center;justify-content:center;padding:14px;
      -webkit-font-smoothing:antialiased}
 
-/* brushed metal: fine horizontal grain over a soft vertical gradient */
-.metal{background-image:repeating-linear-gradient(0deg,
-         rgba(255,255,255,.55) 0 1px, rgba(0,0,0,.035) 1px 2px),
-       linear-gradient(#e8e8e8,#d0d0d0)}
+.metal{background-image:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b))}
 
 .win{width:100%;max-width:1180px;height:100%;max-height:820px;display:flex;flex-direction:column;
-     border:1px solid #6f6f6f;border-radius:7px;overflow:hidden;
+     border:1px solid var(--win-line);border-radius:7px;overflow:hidden;
      box-shadow:0 12px 34px rgba(0,0,0,.45)}
 
 .title{height:22px;flex:none;display:flex;align-items:center;justify-content:center;
-       border-bottom:1px solid #a4a4a4;font-weight:600;color:#3a3a3a;
+       border-bottom:1px solid var(--chrome-line);font-weight:600;color:var(--chrome-ink);
        font-size:12px;position:relative}
 .lights{position:absolute;left:8px;display:flex;gap:6px}
 .lights i{width:11px;height:11px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.35)}
@@ -158,30 +215,27 @@ body{background:#6b6b6b;font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Aria
 .lights i:nth-child(2){background:radial-gradient(circle at 35% 30%,#ffd479,#e0a234)}
 .lights i:nth-child(3){background:radial-gradient(circle at 35% 30%,#a8e57f,#4fa42f)}
 
-/* transport, restored from the original now that it drives real playback */
 .transport{flex:none;display:flex;align-items:center;gap:7px}
-.tbtn{width:29px;height:29px;border-radius:50%;border:1px solid #8d8d8d;cursor:pointer;
+.tbtn{width:29px;height:29px;border-radius:50%;border:1px solid var(--btn-line);cursor:pointer;
   display:flex;align-items:center;justify-content:center;padding:0;
-  background:linear-gradient(#fdfdfd,#d7d7d7);
+  background:linear-gradient(var(--btn-a),var(--btn-b));
   box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28)}
 .tbtn.big{width:39px;height:39px}
-.tbtn:hover{background:linear-gradient(#fff,#e4e4e4)}
-.tbtn:active{background:linear-gradient(#c4c4c4,#e8e8e8);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
+.tbtn:hover{filter:brightness(1.06)}
+.tbtn:active{filter:brightness(.9);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
 .tbtn:disabled{opacity:.4;cursor:default}
-.tbtn svg{fill:#3c3c3c;pointer-events:none}
-.vol{width:74px;margin-left:4px;accent-color:#5a5a5a}
+.tbtn svg{fill:var(--btn-ink);pointer-events:none}
+.vol{width:74px;margin-left:4px;accent-color:var(--btn-ink)}
 
-/* progress, inside the LCD as it was */
-.bar{width:88%;height:7px;border-radius:4px;background:#b9bfae;cursor:pointer;
-  border:1px solid #949a8a;box-shadow:inset 0 1px 2px rgba(0,0,0,.25);position:relative}
+.bar{width:88%;height:7px;border-radius:4px;background:var(--bar-track);cursor:pointer;
+  border:1px solid var(--bar-line);box-shadow:inset 0 1px 2px rgba(0,0,0,.25);position:relative}
 .bar span{display:block;height:100%;border-radius:3px 0 0 3px;
-  background:linear-gradient(#8f9c82,#6f7c63)}
+  background:linear-gradient(var(--bar-a),var(--bar-b))}
 .times{display:flex;justify-content:space-between;width:88%;font-size:9.5px;
-  color:#4a5044;font-variant-numeric:tabular-nums}
+  color:var(--lcd-dim);font-variant-numeric:tabular-nums}
 .row.playing{font-weight:600}
-.row.playing .c-name::before{content:"\25B6";font-size:8px;margin-right:5px;color:#3a6ea5}
+.row.playing .c-name::before{content:"\25B6";font-size:8px;margin-right:5px;color:var(--sel)}
 
-/* the fallback: hands the whole view to VLC instead */
 .playbtn{flex:none;display:flex;align-items:center;gap:8px;height:30px;
   padding:0 14px 0 11px;border-radius:15px;cursor:pointer;font-size:11px;
   border:1px solid #2f2f2f;color:#f4f4f4;font:600 12px "Lucida Grande",sans-serif;
@@ -194,16 +248,16 @@ body{background:#6b6b6b;font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Aria
 .playbtn:disabled{opacity:.45;cursor:default}
 .playbtn svg{flex:none;filter:drop-shadow(0 -1px 0 rgba(0,0,0,.5))}
 
-/* the LCD is a readout, not a transport */
 .top{flex:none;display:flex;align-items:center;gap:14px;padding:9px 12px;
-     border-bottom:1px solid #a4a4a4}
-.lcd{flex:1;height:66px;border-radius:9px;background:linear-gradient(#d7dbcd,#c9cebe);
-     border:1px solid #8e9384;box-shadow:inset 0 1px 3px rgba(0,0,0,.3);
+     border-bottom:1px solid var(--chrome-line)}
+.lcd{flex:1;height:66px;border-radius:9px;
+     background:linear-gradient(var(--lcd-a),var(--lcd-b));
+     border:1px solid var(--lcd-line);box-shadow:inset 0 1px 3px rgba(0,0,0,.3);
      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
      text-shadow:0 1px 0 rgba(255,255,255,.4);overflow:hidden;padding:0 12px}
-#lcdName{font-weight:600;font-size:12px;color:#20241c;white-space:nowrap;overflow:hidden;
-         text-overflow:ellipsis;max-width:100%}
-#lcdSub{font-size:10px;color:#4a5044;font-variant-numeric:tabular-nums}
+#lcdName{font-weight:600;font-size:12px;color:var(--lcd-ink);white-space:nowrap;
+         overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#lcdSub{font-size:10px;color:var(--lcd-dim);font-variant-numeric:tabular-nums}
 .searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 #search{width:190px;height:20px;border-radius:10px;border:1px solid #8f8f8f;padding:0 22px 0 22px;
         font:11px "Lucida Grande",sans-serif;background:#fff url("data:image/svg+xml;charset=utf8,\
@@ -212,42 +266,40 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 %3Cpath d='M10 10l3.5 3.5'/%3E%3C/g%3E%3C/svg%3E") \
 6px 50%/11px no-repeat;box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
 #search:focus{outline:2px solid #7ba7e0;outline-offset:-1px}
-#count{font-size:10px;color:#4a4a4a;font-variant-numeric:tabular-nums}
+#count{font-size:10px;color:var(--chrome-ink);font-variant-numeric:tabular-nums}
 
 .body{flex:1;display:flex;min-height:0;border-top:1px solid #fff}
 
-/* source list */
-.source{width:172px;flex:none;background:#fff;border-right:1px solid #9a9a9a;
+.source{width:172px;flex:none;background:var(--src-bg);border-right:1px solid var(--src-line);
         display:flex;flex-direction:column;min-height:0}
 .srchead{flex:none;height:18px;display:flex;align-items:center;justify-content:center;
-         font-size:10px;color:#555;border-bottom:1px solid #b4b4b4;
-         background:linear-gradient(#ededed,#dcdcdc)}
+         font-size:10px;color:var(--src-head-ink);border-bottom:1px solid var(--head-div);
+         background:linear-gradient(var(--src-head-a),var(--src-head-b))}
 .srclist{flex:1;overflow-y:auto;padding:3px 0}
 .src{display:flex;align-items:center;gap:5px;padding:2px 8px;cursor:default;
      white-space:nowrap;overflow:hidden}
 .src span{overflow:hidden;text-overflow:ellipsis}
 .src svg{flex:none}
-.src.on{background:#3a6ea5;color:#fff}
-.src.on svg{fill:#fff}
+.src.on{background:var(--sel);color:var(--sel-ink)}
+.src.on svg{fill:var(--sel-ink)}
 
-/* track table */
 .tracks{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0;
-        background:#fff}
+        background:var(--pane)}
 .thead{position:sticky;top:0;z-index:2;display:flex;width:max-content;min-width:100%;
-       background:linear-gradient(#f0f0f0,#dadada);
-       border-bottom:1px solid #9a9a9a;font-size:10px;color:#333}
-.thead div{padding:3px 6px;border-right:1px solid #c4c4c4;cursor:default;
+       background:linear-gradient(var(--head-a),var(--head-b));
+       border-bottom:1px solid var(--head-line);font-size:10px;color:var(--head-ink)}
+.thead div{padding:3px 6px;border-right:1px solid var(--head-div);cursor:default;
            white-space:nowrap;overflow:hidden;position:relative;user-select:none}
 .thead div:hover{background:rgba(0,0,0,.05)}
-.thead div.sorted{background:linear-gradient(#dfe7f2,#c9d6e8)}
+.thead div.sorted{background:linear-gradient(var(--sorted-a),var(--sorted-b))}
 .thead div.sorted::after{content:"";position:absolute;right:4px;top:50%;margin-top:-2px;
   border-left:3.5px solid transparent;border-right:3.5px solid transparent;
   border-top:4px solid #4a4a4a}
 .thead div.sorted.asc::after{border-top:none;border-bottom:4px solid #4a4a4a}
 .scroll{flex:1;overflow:auto}
 .row{display:flex;height:17px;align-items:center;width:max-content;min-width:100%}
-.row:nth-child(even){background:#edf3fb}
-.row.sel{background:#b6c8de}
+.row:nth-child(even){background:var(--stripe)}
+.row.sel{background:var(--rowsel)}
 .row.ghost{color:#a0a0a0;font-style:italic}
 .row.ghost.sel{color:#5a5a5a}
 .found-gone,.found-ambiguous{color:#b23b3b;font-style:normal}
@@ -265,25 +317,34 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .last{padding-right:10px}
 .star{color:#5a5a5a;letter-spacing:1px}
 
-/* View Options, reached by right-clicking the column headers */
-.vo{position:fixed;z-index:20;background:#f2f2f2;border:1px solid #7a7a7a;border-radius:5px;
+/* Floating panels: View Options on the headers, Preferences on the gear. */
+.panel{position:fixed;z-index:20;background:#f2f2f2;border:1px solid #7a7a7a;border-radius:5px;
     box-shadow:0 6px 20px rgba(0,0,0,.35);padding:6px 0;max-height:70vh;overflow-y:auto;
-    min-width:186px;display:none}
-.vo.open{display:block}
-.vo h4{font-size:10px;color:#666;font-weight:400;padding:2px 12px 5px;
+    min-width:186px;display:none;color:#000}
+.panel.open{display:block}
+.panel h4{font-size:10px;color:#666;font-weight:400;padding:2px 12px 5px;
        border-bottom:1px solid #d6d6d6;margin-bottom:4px}
-.vo label{display:flex;align-items:center;gap:7px;padding:2px 12px;cursor:default}
-.vo label:hover{background:#3a6ea5;color:#fff}
-.vo input{margin:0}
+.panel h4:not(:first-child){margin-top:6px}
+.panel label{display:flex;align-items:center;gap:7px;padding:2px 12px;cursor:default}
+.panel label:hover{background:#3a6ea5;color:#fff}
+.panel input{margin:0}
+.panel .era{margin-left:auto;opacity:.6;font-size:9.5px;padding-left:14px}
 
 .empty{padding:26px;color:#888;text-align:center}
 .status{flex:none;height:22px;display:flex;align-items:center;justify-content:center;
-        border-top:1px solid #fff;font-size:10px;color:#3a3a3a;
-        text-shadow:0 1px 0 rgba(255,255,255,.5)}
+        border-top:1px solid #fff;font-size:10px;color:var(--chrome-ink);
+        text-shadow:0 1px 0 rgba(255,255,255,.5);position:relative}
+.gear{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+      width:17px;height:17px;border-radius:4px;border:1px solid var(--btn-line);
+      background:linear-gradient(var(--btn-a),var(--btn-b));cursor:pointer;
+      display:flex;align-items:center;justify-content:center;padding:0}
+.gear:hover{filter:brightness(1.06)}
+.gear svg{fill:var(--btn-ink);pointer-events:none}
+
 ::-webkit-scrollbar{width:13px}
-::-webkit-scrollbar-track{background:#f0f0f0;border-left:1px solid #c4c4c4}
-::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#c8d4e4,#9db2cc);
-  border:1px solid #7f92aa;border-radius:6px}
+::-webkit-scrollbar-track{background:var(--scroll-track);border-left:1px solid var(--head-div)}
+::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--scroll-a),var(--scroll-b));
+  border:1px solid var(--scroll-line);border-radius:6px}
 """
 
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E"
@@ -297,7 +358,12 @@ const $=s=>document.querySelector(s);
 let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
 // what is playing, as a pool index, plus the queue it came from
 let nowIdx=-1,queue=[],qpos=-1;
-const KEY="playlists.columns";
+const KEY="playlists.columns", SKINKEY="playlists.skin";
+// Only eras that kept this layout. iTunes 11 hid the sidebar and 12 moved to a
+// tab bar, so they are deliberately absent rather than faked.
+const SKINS=[["greenwood","Greenwood","iTunes 1-4"],
+             ["tofino","Tofino","iTunes 5-6"],
+             ["kaslo","Kaslo","iTunes 7-10"]];
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
@@ -404,6 +470,28 @@ function loadCols(){
   return FIELDS.map((f,i)=>f[2]?i:-1).filter(i=>i>=0);
 }
 
+function skinName(){
+  try{
+    const v=localStorage.getItem(SKINKEY);
+    if(SKINS.some(k=>k[0]===v))return v;
+  }catch(e){}
+  return SKINS[0][0];
+}
+
+function applySkin(name){
+  // Greenwood is the base stylesheet, so it carries no attribute at all
+  if(name===SKINS[0][0])document.documentElement.removeAttribute("data-skin");
+  else document.documentElement.setAttribute("data-skin",name);
+  try{localStorage.setItem(SKINKEY,name);}catch(e){}
+}
+
+function buildPrefs(){
+  const now=skinName();
+  $("#prefs").innerHTML="<h4>Appearance</h4>"+SKINS.map(([id,label,era])=>
+    `<label><input type="radio" name="skin" value="${id}"${id===now?" checked":""}>`+
+    `${esc(label)}<span class="era">${esc(era)}</span></label>`).join("");
+}
+
 function buildOptions(){
   $("#vo").innerHTML="<h4>View Options</h4>"+FIELDS.map((f,i)=>
     `<label><input type="checkbox" data-f="${i}"${vis.includes(i)?" checked":""}`+
@@ -458,6 +546,7 @@ function paint(){
 
 function boot(){
   FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
+  applySkin(skinName()); buildPrefs();
   drawSources();buildOptions();draw();paint();
 
   $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
@@ -516,13 +605,19 @@ function boot(){
   };
 
   // right-click the headers for the column picker, as iTunes did
-  $("#thead").oncontextmenu=e=>{
-    e.preventDefault();
-    const vo=$("#vo");
-    vo.style.left=Math.min(e.clientX,innerWidth-200)+"px";
-    vo.style.top=Math.min(e.clientY,innerHeight-320)+"px";
-    vo.classList.add("open");
+  const openPanel=(el,x,y)=>{
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("open"));
+    el.style.left=Math.min(x,innerWidth-210)+"px";
+    el.style.top=Math.min(y,innerHeight-el.scrollHeight-12)+"px";
+    el.classList.add("open");
   };
+  $("#thead").oncontextmenu=e=>{e.preventDefault();openPanel($("#vo"),e.clientX,e.clientY);};
+  $("#gear").onclick=e=>{
+    e.stopPropagation();
+    const r=$("#gear").getBoundingClientRect();
+    openPanel($("#prefs"),r.right-200,r.top-$("#prefs").scrollHeight-8);
+  };
+  $("#prefs").onchange=e=>{ applySkin(e.target.value); };
   $("#vo").onchange=e=>{
     const i=+e.target.dataset.f;
     vis = e.target.checked ? FIELDS.map((_,n)=>n).filter(n=>n===i||vis.includes(n))
@@ -531,7 +626,8 @@ function boot(){
     saveCols();draw();
   };
   document.addEventListener("mousedown",e=>{
-    if(!e.target.closest("#vo")&&!e.target.closest("#thead"))$("#vo").classList.remove("open");
+    if(e.target.closest(".panel")||e.target.closest("#thead")||e.target.closest("#gear"))return;
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("open"));
   });
 }
 
@@ -594,9 +690,20 @@ def write_page(out_dir, n_playlists, n_refs):
       </div>
     </div>
   </div>
-  <div class="status metal" id="status"></div>
+  <div class="status metal">
+    <span id="status"></span>
+    <button class="gear" id="gear" title="Preferences">
+      <svg width="11" height="11" viewBox="0 0 16 16"><path d="M8 5.2A2.8 2.8 0 1 0 8
+        10.8 2.8 2.8 0 0 0 8 5.2zm0 4.3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM14 8.9v-1.8l-1.6-.3a4.6
+        4.6 0 0 0-.5-1.2l.9-1.3-1.3-1.3-1.3.9a4.6 4.6 0 0 0-1.2-.5L8.9 2H7.1l-.3 1.6a4.6 4.6 0 0
+        0-1.2.5l-1.3-.9-1.3 1.3.9 1.3a4.6 4.6 0 0 0-.5 1.2L2 7.1v1.8l1.6.3c.1.4.3.8.5 1.2l-.9
+        1.3 1.3 1.3 1.3-.9c.4.2.8.4 1.2.5l.3 1.6h1.8l.3-1.6c.4-.1.8-.3
+        1.2-.5l1.3.9 1.3-1.3-.9-1.3c.2-.4.4-.8.5-1.2L14 8.9z"/></svg>
+    </button>
+  </div>
 </div>
-<div class="vo" id="vo"></div>
+<div class="panel" id="vo"></div>
+<div class="panel" id="prefs"></div>
 <script>const NOTE="{NOTE_SVG}";</script>
 <script>{JS}</script>
 </body></html>"""

@@ -66,6 +66,10 @@ the one you asked for, so a leftover process doesn't stop the launch.
 - **Play in VLC** — the fallback. Hands VLC exactly what is on screen, in the
   order shown. Better for a long listen: gapless, ReplayGain, and every codec
   the browser won't touch.
+- **Skins** — the gear in the bottom-right corner. Three eras that kept this
+  layout, named for small towns in British Columbia: **Greenwood** (iTunes 1–4,
+  brushed metal, the default), **Tofino** (5–6, flat grey), **Kaslo** (7–10,
+  blue sidebar). Remembered per browser.
 - **Missing tracks** — shown greyed, with a Found column saying how each was
   located: `direct`, `moved`, `by size`, or `gone`. They're excluded from totals
   and never queued.
@@ -121,6 +125,16 @@ conflict at all, nothing runs: a half-finished pass over tens of thousands of
 files is worse than one that declines to start.
 
 Every rename is journalled, and `--undo` reverses the whole run.
+
+## Why only three skins
+
+iTunes 11 hid the sidebar and led with an album grid; 12 moved to a tab bar
+across the top. Those are different layouts, not different paint, so putting
+their colours on this one would be a costume rather than a skin. The three
+offered are the eras that genuinely shared this arrangement.
+
+Each skin is a set of CSS custom-property overrides — no skin sets a real
+property, which is enforced by a test, so none of them can drift the layout.
 
 ## Limits
 

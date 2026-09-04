@@ -64,6 +64,19 @@ turns a local convenience into an arbitrary-file-open.
 `SIGCHLD` is set to `SIG_IGN` so launched VLC processes are reaped; without it
 every click leaves a zombie.
 
+## Skins
+
+`:root` in `CSS` holds every colour token and *is* the Greenwood skin, so the
+default needs no attribute. Other eras are `[data-skin="..."]` blocks that
+override tokens only — never a real property. `tests/test_skins.py` enforces
+that, along with the rule that no skin may claim an era past iTunes 10: 11 hid
+the sidebar and 12 moved to a tab bar, so those are different layouts rather
+than repaints.
+
+Adding a skin means adding a token block and one entry to `SKINS` in the page
+script. The test suite checks the two stay in step and that every overridden
+token exists on `:root`.
+
 ## Column data
 
 `FIELDS` in `build_browser.py` is the single list of what gets carried out of the
