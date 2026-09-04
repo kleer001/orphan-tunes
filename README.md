@@ -60,17 +60,33 @@ the one you asked for, so a leftover process doesn't stop the launch.
   from the library is available: ratings as stars, bit rate, sample rate, dates
   added / played / skipped, composer, BPM, comments, disc and track numbers.
   The choice is remembered per browser.
-- **Play in VLC** — hands VLC exactly what is on screen, in the order shown.
-  Sort by length, filter to one artist, then play that.
+- **Playback** — double-click a row to play it, or press play to start from the
+  selection. Skip, seek by clicking the progress bar, and it advances through the
+  rows in the order shown, skipping ones that aren't on disk.
+- **Play in VLC** — the fallback. Hands VLC exactly what is on screen, in the
+  order shown. Better for a long listen: gapless, ReplayGain, and every codec
+  the browser won't touch.
+- **Missing tracks** — shown greyed, with a Found column saying how each was
+  located: `direct`, `moved`, `by size`, or `gone`. They're excluded from totals
+  and never queued.
 
-## How the Play button works
+## How playback works
 
-A web page cannot launch an application, so the page posts to the local server,
-which writes `_now_playing.m3u8` into the browser directory and opens it in VLC.
+`GET /audio?i=<n>` streams a track with byte-range support, which is what makes
+seeking work — Python's stock handler has none, so it is implemented here. The
+server is threaded, or streaming one track would block the page that asked for
+it.
 
-The page sends **row numbers only**, never paths. The server maps them through
-its own `paths.json`, so a request cannot name a file that isn't in the library;
-indices outside the pool are refused. The server binds to `127.0.0.1`.
+No decoder is involved. Browsers already decode MP3, AAC/M4A, WAV and FLAC; the
+server's job is only to hand over the right bytes with the right content type.
+That covers about 99% of a typical library. AIFF is the usual holdout — those
+tracks fail visibly rather than silently, and the VLC button plays them.
+
+The VLC fallback posts to `/play`, which writes `_now_playing.m3u8` and opens it.
+
+Both endpoints take **row numbers only**, never paths. The server maps them
+through its own `paths.json`, which the page never receives, so neither can be
+asked for a file outside the library. It binds to `127.0.0.1`.
 
 ## Files
 

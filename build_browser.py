@@ -158,9 +158,32 @@ body{background:#6b6b6b;font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Aria
 .lights i:nth-child(2){background:radial-gradient(circle at 35% 30%,#ffd479,#e0a234)}
 .lights i:nth-child(3){background:radial-gradient(circle at 35% 30%,#a8e57f,#4fa42f)}
 
-/* the one real transport control: hands the playlist to VLC */
-.playbtn{flex:none;display:flex;align-items:center;gap:9px;height:44px;
-  padding:0 18px 0 15px;border-radius:23px;cursor:pointer;
+/* transport, restored from the original now that it drives real playback */
+.transport{flex:none;display:flex;align-items:center;gap:7px}
+.tbtn{width:29px;height:29px;border-radius:50%;border:1px solid #8d8d8d;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  background:linear-gradient(#fdfdfd,#d7d7d7);
+  box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28)}
+.tbtn.big{width:39px;height:39px}
+.tbtn:hover{background:linear-gradient(#fff,#e4e4e4)}
+.tbtn:active{background:linear-gradient(#c4c4c4,#e8e8e8);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
+.tbtn:disabled{opacity:.4;cursor:default}
+.tbtn svg{fill:#3c3c3c;pointer-events:none}
+.vol{width:74px;margin-left:4px;accent-color:#5a5a5a}
+
+/* progress, inside the LCD as it was */
+.bar{width:88%;height:7px;border-radius:4px;background:#b9bfae;cursor:pointer;
+  border:1px solid #949a8a;box-shadow:inset 0 1px 2px rgba(0,0,0,.25);position:relative}
+.bar span{display:block;height:100%;border-radius:3px 0 0 3px;
+  background:linear-gradient(#8f9c82,#6f7c63)}
+.times{display:flex;justify-content:space-between;width:88%;font-size:9.5px;
+  color:#4a5044;font-variant-numeric:tabular-nums}
+.row.playing{font-weight:600}
+.row.playing .c-name::before{content:"\25B6";font-size:8px;margin-right:5px;color:#3a6ea5}
+
+/* the fallback: hands the whole view to VLC instead */
+.playbtn{flex:none;display:flex;align-items:center;gap:8px;height:30px;
+  padding:0 14px 0 11px;border-radius:15px;cursor:pointer;font-size:11px;
   border:1px solid #2f2f2f;color:#f4f4f4;font:600 12px "Lucida Grande",sans-serif;
   background:linear-gradient(#6f6f6f 0%,#575757 48%,#454545 52%,#3a3a3a 100%);
   text-shadow:0 -1px 0 rgba(0,0,0,.55);
@@ -174,14 +197,14 @@ body{background:#6b6b6b;font:11px/1.35 "Lucida Grande","Segoe UI",Helvetica,Aria
 /* the LCD is a readout, not a transport */
 .top{flex:none;display:flex;align-items:center;gap:14px;padding:9px 12px;
      border-bottom:1px solid #a4a4a4}
-.lcd{flex:1;height:44px;border-radius:9px;background:linear-gradient(#d7dbcd,#c9cebe);
+.lcd{flex:1;height:66px;border-radius:9px;background:linear-gradient(#d7dbcd,#c9cebe);
      border:1px solid #8e9384;box-shadow:inset 0 1px 3px rgba(0,0,0,.3);
      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
      text-shadow:0 1px 0 rgba(255,255,255,.4);overflow:hidden;padding:0 12px}
 #lcdName{font-weight:600;font-size:12px;color:#20241c;white-space:nowrap;overflow:hidden;
          text-overflow:ellipsis;max-width:100%}
 #lcdSub{font-size:10px;color:#4a5044;font-variant-numeric:tabular-nums}
-.searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 #search{width:190px;height:20px;border-radius:10px;border:1px solid #8f8f8f;padding:0 22px 0 22px;
         font:11px "Lucida Grande",sans-serif;background:#fff url("data:image/svg+xml;charset=utf8,\
 %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23888' \
@@ -272,6 +295,8 @@ NOTE_SVG = ("<svg width='9' height='11' viewBox='0 0 9 11' fill='%233a6ea5'>"
 JS = r"""
 const $=s=>document.querySelector(s);
 let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
+// what is playing, as a pool index, plus the queue it came from
+let nowIdx=-1,queue=[],qpos=-1;
 const KEY="playlists.columns";
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
@@ -330,7 +355,7 @@ function current(){
 
 function colClass(i,nth){
   const kind=FIELDS[i][1];
-  return `col-${kind}`+(i===0?" grow":"")+(nth===vis.length-1?" last":"")
+  return `col-${kind}`+(i===0?" grow c-name":"")+(nth===vis.length-1?" last":"")
         +(RIGHT.has(kind)?" num":"");
 }
 
@@ -342,7 +367,8 @@ function draw(){
     `data-c="${f}">${esc(FIELDS[f][0])}</div>`).join("");
   $("#rows").innerHTML=rows.length?rows.map((idx,i)=>{
     const t=DATA.tracks[idx], gone=missing(t);
-    return `<div class="row${i===sel?" sel":""}${gone?" ghost":""}" data-i="${i}">`+
+    return `<div class="row${i===sel?" sel":""}${gone?" ghost":""}`+
+      `${idx===nowIdx?" playing":""}" data-i="${i}">`+
       vis.map((f,n)=>
         `<div class="${colClass(f,n)}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
       `</div>`;}).join("")
@@ -358,7 +384,8 @@ function draw(){
       +(gone?`   \u00b7   ${gone} missing`:"")
     : "no songs";
   $("#count").textContent=rows.length===total?songs(total):`${rows.length} of ${total}`;
-  $("#lcdName").textContent=DATA.playlists[cur].name;
+  $("#lcdName").textContent=nowIdx>=0
+    ? label(DATA.tracks[nowIdx]) : DATA.playlists[cur].name;
   $("#play").disabled=!here.length;   // nothing playable, even if rows show
   // the LCD covers the whole playlist, so it counts what is actually there
   const all=DATA.playlists[cur].ids, playable=all.filter(i=>!missing(DATA.tracks[i]));
@@ -383,9 +410,55 @@ function buildOptions(){
     `${i===0?" disabled":""}> ${esc(f[0])}</label>`).join("");
 }
 
+const audio=$("#audio");
+const clock=s=>isFinite(s)?`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`:"";
+
+function label(t){
+  const artist=t[2]||t[8];
+  return artist?`${t[0]} — ${artist}`:t[0];
+}
+
+function play(poolIndex){
+  const t=DATA.tracks[poolIndex];
+  if(missing(t))return;
+  nowIdx=poolIndex;
+  queue=rows.filter(i=>!missing(DATA.tracks[i]));
+  qpos=queue.indexOf(poolIndex);
+  audio.src="audio?i="+poolIndex;
+  audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
+  draw();
+}
+
+function step(by){
+  if(!queue.length)return;
+  const at=qpos+by;
+  if(at<0||at>=queue.length){stop();return;}
+  play(queue[at]);
+}
+
+function stop(){
+  audio.pause(); audio.removeAttribute("src"); audio.load();
+  nowIdx=-1; qpos=-1; paint(); draw();
+}
+
+function lcd(msg){ $("#lcdName").textContent=msg; }
+
+function paint(){
+  const on=nowIdx>=0&&!audio.paused;
+  $("#toggleIcon").innerHTML=on
+    ? '<path d="M2 1h3.5v12H2zM7.5 1H11v12H7.5z"/>'
+    : '<path d="M2 1v12l9.5-6z"/>';
+  $("#toggle").title=on?"Pause":"Play";
+  const d=audio.duration||0, c=audio.currentTime||0;
+  $("#barFill").style.width=d?`${100*c/d}%`:"0";
+  $("#elapsed").textContent=nowIdx>=0?clock(c):"";
+  $("#left").textContent=nowIdx>=0&&d?"-"+clock(d-c):"";
+  $("#prev").disabled=$("#next").disabled=nowIdx<0;
+}
+
 function boot(){
   FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
-  drawSources();buildOptions();draw();
+  drawSources();buildOptions();draw();paint();
 
   $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
     cur=+el.dataset.i;sel=-1;$("#search").value="";
@@ -394,6 +467,36 @@ function boot(){
     const c=+el.dataset.c; asc=(c===sortCol)?!asc:true; sortCol=c; sel=-1; draw();};
   $("#rows").onclick=e=>{const el=e.target.closest(".row");if(!el)return;
     sel=+el.dataset.i;draw();};
+  $("#rows").ondblclick=e=>{const el=e.target.closest(".row");if(!el)return;
+    play(rows[+el.dataset.i]);};
+
+  $("#toggle").onclick=()=>{
+    if(nowIdx<0){                       // nothing cued: start at the selection
+      const start=sel>=0?rows[sel]:rows.find(i=>!missing(DATA.tracks[i]));
+      if(start!==undefined)play(start);
+      return;
+    }
+    audio.paused?audio.play():audio.pause();
+  };
+  $("#prev").onclick=()=>step(-1);
+  $("#next").onclick=()=>step(1);
+  $("#vol").oninput=e=>{audio.volume=+e.target.value;};
+
+  $("#bar").onclick=e=>{
+    if(!audio.duration)return;
+    const r=$("#bar").getBoundingClientRect();
+    audio.currentTime=audio.duration*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+  };
+
+  audio.addEventListener("timeupdate",paint);
+  audio.addEventListener("play",paint);
+  audio.addEventListener("pause",paint);
+  audio.addEventListener("loadedmetadata",paint);
+  audio.addEventListener("ended",()=>step(1));
+  audio.addEventListener("error",()=>{
+    const t=DATA.tracks[nowIdx];
+    lcd(t?`Cannot play ${t[0]}`:"Playback failed");
+  });
   $("#search").oninput=()=>{sel=-1;draw();};
 
   $("#play").onclick=async()=>{
@@ -446,17 +549,39 @@ def write_page(out_dir, n_playlists, n_refs):
 <div class="win metal">
   <div class="title metal"><div class="lights"><i></i><i></i><i></i></div>Playlists</div>
   <div class="top metal">
-    <button class="playbtn" id="play" title="Open this playlist in VLC">
-      <svg width="15" height="16" viewBox="0 0 15 16" aria-hidden="true">
-        <path d="M2 1.4v13.2L13.2 8z" fill="#fff"/></svg>
-      <span id="playLabel">Play in VLC</span>
-    </button>
-    <div class="lcd"><div id="lcdName">&nbsp;</div><div id="lcdSub">&nbsp;</div></div>
+    <div class="transport">
+      <button class="tbtn" id="prev" title="Previous">
+        <svg width="11" height="11" viewBox="0 0 11 11">
+          <path d="M2 1h1.6v9H2zM10 1v9L4 5.5z"/></svg>
+      </button>
+      <button class="tbtn big" id="toggle" title="Play">
+        <svg id="toggleIcon" width="13" height="14" viewBox="0 0 13 14">
+          <path d="M2 1v12l9.5-6z"/></svg>
+      </button>
+      <button class="tbtn" id="next" title="Next">
+        <svg width="11" height="11" viewBox="0 0 11 11">
+          <path d="M7.4 1H9v9H7.4zM1 1l6 4.5L1 10z"/></svg>
+      </button>
+      <input class="vol" id="vol" type="range" min="0" max="1" step="0.01" value="1"
+             title="Volume">
+    </div>
+    <div class="lcd">
+      <div id="lcdName">&nbsp;</div>
+      <div id="lcdSub">&nbsp;</div>
+      <div class="bar" id="bar"><span id="barFill" style="width:0"></span></div>
+      <div class="times"><span id="elapsed"></span><span id="left"></span></div>
+    </div>
     <div class="searchwrap">
+      <button class="playbtn" id="play" title="Open this view in VLC instead">
+        <svg width="11" height="12" viewBox="0 0 15 16" aria-hidden="true">
+          <path d="M2 1.4v13.2L13.2 8z" fill="#fff"/></svg>
+        <span id="playLabel">Play in VLC</span>
+      </button>
       <input id="search" type="search" placeholder="Search" autocomplete="off">
       <div id="count"></div>
     </div>
   </div>
+  <audio id="audio" preload="none"></audio>
   <div class="body">
     <div class="source">
       <div class="srchead">Source</div>

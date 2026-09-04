@@ -39,6 +39,20 @@ Three steps, in order, in `locate()`:
 
 Anything still unresolved is counted and reported. Never guess a track.
 
+## Playback
+
+`/audio?i=<n>` serves one track. Byte-range support is hand-rolled because
+`SimpleHTTPRequestHandler` has none, and without it seeking silently fails. The
+server must stay threaded: single-threaded, streaming a track blocks every other
+request including the page itself.
+
+Decoding is the browser's job. Do not add a decoder — `<audio>` handles MP3,
+AAC/M4A, WAV and FLAC natively. The server's only responsibility is correct
+`Content-Type`, `Accept-Ranges`, `Content-Range` and status (206 vs 200 vs 416).
+
+The queue is whatever rows are on screen, in the order shown, minus unresolved
+ones. Sorting or filtering the table changes what plays next.
+
 ## The /play endpoint
 
 The page posts `{name, indices}` — row numbers into the track pool, never paths.
