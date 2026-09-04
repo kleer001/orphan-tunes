@@ -16,3 +16,8 @@ local_root = "/mnt/archive/iTunes Media"
 playlists = "/mnt/archive/playlists"
 # The browsable page, its data, and the playlist the Play button hands to VLC.
 browser = "/mnt/archive/browser"
+
+[serve]
+# Where `python serve.py` starts looking for a free port. It probes upward from
+# here, so a leftover process on this one does not stop the launch.
+port = 8000

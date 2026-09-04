@@ -29,6 +29,13 @@ import os
 import sys
 import time
 
+# Enough of a sample to recognise a pattern without burying the summary.
+SHOW_SKIPPED = 10
+SHOW_PROBLEMS = 20
+
+# Renames are fast, so progress only needs to prove it has not stalled.
+PROGRESS_EVERY = 2000
+
 
 def target_of(name):
     """'foo-2.mp3' -> 'foo.mp3'. None if the name doesn't carry the marker."""
@@ -108,7 +115,7 @@ def apply_plan(pairs, journal_path):
 
             journal.write(json.dumps({"from": src, "to": dst}) + "\n")
             done += 1
-            if done % 2000 == 0:
+            if done % PROGRESS_EVERY == 0:
                 print(f"  {done}/{len(pairs)}")
     return done
 
@@ -145,7 +152,7 @@ def main():
     print(f"{root}")
     print(f"  {len(pairs)} files to rename")
     print(f"  {len(left_alone)} genuinely named '-2', left alone")
-    for src in left_alone[:10]:
+    for src in left_alone[:SHOW_SKIPPED]:
         print(f"      {src[len(root) + 1:]}")
 
     # Written beside us, never inside the tree we are about to modify.
@@ -157,7 +164,7 @@ def main():
 
     if problems:
         print(f"\nREFUSING TO RUN — {len(problems)} problems:", file=sys.stderr)
-        for p in problems[:20]:
+        for p in problems[:SHOW_PROBLEMS]:
             print(f"  {p}", file=sys.stderr)
         sys.exit(1)
 

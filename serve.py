@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Serve a directory over localhost, taking the first free port at or above 8000.
 
-    python serve.py <directory> [port]
+    python serve.py [directory] [port]      # either, both, or neither
+
+Both default to config.toml, so plain `python serve.py` serves the browser
+directory the generator writes to.
 
 GET /audio?i=<n> streams one track, with byte-range support so the browser can
 seek. POST /play with {"name": ..., "indices": [...]} writes those tracks, in
@@ -26,8 +29,19 @@ import subprocess
 import sys
 import urllib.parse
 
+from config import BROWSER_DIR, PORT
 
-def first_free(start, tries=50):
+# How far to probe upward before giving up. Fifty is well past any plausible
+# pile-up of stale servers, and short enough to fail quickly if something is
+# holding the whole range.
+PORT_SEARCH_SPAN = 50
+
+# Streaming granularity. Small enough that a seek abandons little work, large
+# enough not to syscall per packet.
+CHUNK_BYTES = 64 * 1024
+
+
+def first_free(start, tries=PORT_SEARCH_SPAN):
     for port in range(start, start + tries):
         with socket.socket() as probe:
             if probe.connect_ex(("127.0.0.1", port)) != 0:
@@ -131,7 +145,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         with open(path, "rb") as fh:
             fh.seek(start)
             while remaining > 0:
-                chunk = fh.read(min(64 * 1024, remaining))
+                chunk = fh.read(min(CHUNK_BYTES, remaining))
                 if not chunk:
                     break
                 try:
@@ -188,9 +202,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
+    # Either argument may be given alone: a bare number is a port, anything
+    # else is a directory. Both fall back to config.toml.
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    directory = args[0]
-    wanted = int(args[1]) if len(args) > 1 else 8000
+    ports = [a for a in args if a.isdigit()]
+    dirs = [a for a in args if not a.isdigit()]
+    directory = dirs[0] if dirs else BROWSER_DIR
+    wanted = int(ports[0]) if ports else PORT
 
     out = os.path.abspath(directory)
     Handler.out_dir = out

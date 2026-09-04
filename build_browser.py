@@ -17,6 +17,9 @@ from typing import NamedTuple
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
 from make_playlists import index_by_name, locate  # the .m3u8 writer's own
 
+# iTunes records durations in milliseconds; the page wants whole seconds.
+MILLISECONDS = 1000
+
 # Every field worth showing, in iTunes' own column order. "plumbing" fields
 # (Track ID, Location, Persistent ID, the Sort* sort keys, the *Computed flags)
 # are the only ones left behind. type drives both formatting and alignment;
@@ -53,7 +56,39 @@ FIELDS = [
     ("Skip Date",      "Last Skipped", "date", False),
 ]
 
-def build_data(out_dir):
+def cell(track, key, kind):
+    """One library value, in the shape the page expects for that column kind."""
+    v = track.get(key)
+    if v is None:
+        return "" if kind in ("text", "date") else 0
+    if kind == "time":
+        return round(v / MILLISECONDS)
+    if kind == "date":
+        return v.strftime("%Y-%m-%d")          # plist datetime -> sortable string
+    if kind == "bool":
+        return 1 if v else 0
+    return v
+
+
+class Library(NamedTuple):
+    """What the page needs, separated from how it gets written out.
+
+    `paths` is index-aligned with `tracks` and stays server-side: the page is
+    only ever given row numbers.
+    """
+
+    tracks: list
+    paths: list
+    playlists: list
+    missing: int
+
+    @property
+    def refs(self):
+        return sum(len(p["ids"]) for p in self.playlists)
+
+
+def read_library():
+    """Resolve every regular playlist against the files actually on disk."""
     with open(LIBRARY, "rb") as fh:
         lib = plistlib.load(fh)
     tracks = lib["Tracks"]
@@ -62,25 +97,13 @@ def build_data(out_dir):
     pool, paths, seen = [], [], {}
     playlists, missing = [], 0
 
-    def cell(track, key, kind):
-        v = track.get(key)
-        if v is None:
-            return "" if kind in ("text", "date") else 0
-        if kind == "time":
-            return round(v / 1000)
-        if kind == "date":
-            return v.strftime("%Y-%m-%d")      # plist datetime -> sortable string
-        if kind == "bool":
-            return 1 if v else 0
-        return v
-
-    def track_index(track, path, how):
-        """Intern a track into the shared pool; playlists store only offsets."""
+    def intern(track, path, how):
+        """Add a track to the shared pool once; playlists store only offsets."""
         key = track["Track ID"]
         if key not in seen:
             seen[key] = len(pool)
             pool.append([cell(track, k, kind) for k, _, kind, _ in FIELDS] + [how])
-            paths.append(path)          # None when the file could not be found
+            paths.append(path)                 # None when the file was not found
         return seen[key]
 
     for playlist in lib["Playlists"]:
@@ -95,29 +118,27 @@ def build_data(out_dir):
             path, how = locate(track, index)
             if not path:
                 missing += 1
-            ids.append(track_index(track, path, how))
+            ids.append(intern(track, path, how))
         if ids:
             playlists.append({"name": playlist["Name"], "ids": ids})
 
     playlists.sort(key=lambda p: p["name"].lower())
+    return Library(pool, paths, playlists, missing)
 
+
+def write_data(library, out_dir):
+    """Two files: what the page reads, and what only the server reads."""
     fields = [[label, kind, show] for _, label, kind, show in FIELDS]
     fields.append(["Found", "found", False])   # derived, not from the library
-    data = {"fields": fields, "tracks": pool, "playlists": playlists}
+
+    data = {"fields": fields, "tracks": library.tracks, "playlists": library.playlists}
     path = os.path.join(out_dir, "data.json")
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, separators=(",", ":"))
 
-    # Index-aligned with the track pool. Read by the server, never by the page,
-    # so the browser can only ever ask for a row number, not a filesystem path.
     with open(os.path.join(out_dir, "paths.json"), "w", encoding="utf-8") as fh:
-        json.dump(paths, fh, ensure_ascii=False, separators=(",", ":"))
-
-    refs = sum(len(p["ids"]) for p in playlists)
-    print(f"  {len(playlists)} playlists, {refs} track refs, "
-          f"{len(pool)} unique tracks, {missing} shown as missing")
-    print(f"  data.json {os.path.getsize(path) / 1e6:.1f} MB")
-    return len(playlists), refs
+        json.dump(library.paths, fh, ensure_ascii=False, separators=(",", ":"))
+    return os.path.getsize(path)
 
 
 # Every colour, shape and type value the page uses. The stylesheet is generated
@@ -810,15 +831,20 @@ let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1
 let nowIdx=-1,queue=[],qpos=-1,queueKey="",lcdFor=-1,lcdText="";
 let shuffleOn=false,repeatMode="off";      // off | all | one
 const MODEKEY="playlists.modes";
+// How long the button holds its result before going back to its label.
+const VLC_NOTICE_MS=1800;
 const KEY="playlists.columns", SKINKEY="playlists.skin";
 
 const mmss=s=>isFinite(s)
   ? `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}` : "";
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
-const mb=b=>b>=1073741824?(b/1073741824).toFixed(2)+" GB":(b/1048576).toFixed(1)+" MB";
+const MB=1024*1024, GB=1024*MB;
+const mb=b=>b>=GB?(b/GB).toFixed(2)+" GB":(b/MB).toFixed(1)+" MB";
 
 // iTunes stored ratings 0-100; five stars is 100.
-const stars=v=>v?"\u2605".repeat(Math.round(v/20)):"";
+// iTunes stores a rating as 0-100; five stars means each is worth twenty.
+const PER_STAR=20;
+const stars=v=>v?"\u2605".repeat(Math.round(v/PER_STAR)):"";
 function fmt(v,kind,gone){
   if(gone&&(kind==="time"||kind==="size"))return "";
   if(v===""||v===0||v===null)return kind==="bool"?"":"";
@@ -1137,7 +1163,7 @@ function boot(){
       if(!r.ok)msg=(await r.json()).error||"Failed";
     }catch(e){ msg="Server not running"; }
     label.textContent=msg==="Play in VLC"?"Playing\u2026":msg;
-    setTimeout(()=>{label.textContent="Play in VLC";btn.disabled=false;},1800);
+    setTimeout(()=>{label.textContent="Play in VLC";btn.disabled=false;},VLC_NOTICE_MS);
   };
 
   // right-click the headers for the column picker, as iTunes did
@@ -1272,8 +1298,12 @@ def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else BROWSER_DIR
     os.makedirs(out_dir, exist_ok=True)
     print(f"building into {out_dir}")
-    n_playlists, n_refs = build_data(out_dir)
-    write_page(out_dir, n_playlists, n_refs)
+    library = read_library()
+    size = write_data(library, out_dir)
+    print(f"  {len(library.playlists)} playlists, {library.refs} track refs, "
+          f"{len(library.tracks)} unique tracks, {library.missing} shown as missing")
+    print(f"  data.json {size / 1e6:.1f} MB")
+    write_page(out_dir, len(library.playlists), library.refs)
 
 
 if __name__ == "__main__":

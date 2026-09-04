@@ -45,8 +45,11 @@ local_root    = "/mnt/archive/Music"                           # where it is now
 ```bash
 python make_playlists.py        # write one .m3u8 per playlist
 python build_browser.py         # build the browsable page
-python serve.py <browser_dir> 8100
+python serve.py                 # directory and port come from config.toml
 ```
+
+`serve.py` takes an optional directory and port; a bare number is read as a
+port, so `python serve.py 9000` works without restating the directory.
 
 Then open the printed `http://127.0.0.1:<port>/`. The port is probed upward from
 the one you asked for, so a leftover process doesn't stop the launch.

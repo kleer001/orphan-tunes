@@ -9,7 +9,7 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
 - Install deps: `pip install -e ".[dev]"`
 - Write playlists: `python make_playlists.py`
 - Build the page: `python build_browser.py`
-- Serve it: `python serve.py <browser_dir> 8100`
+- Serve it: `python serve.py` (directory and port from `config.toml`)
 - Lint/format: `ruff check . && ruff format .`
 
 ## Project structure
@@ -26,6 +26,14 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   takes its root as a required argument and never reads `config.toml`: this
   renames files, and a destructive tool that runs with no arguments is one
   keystroke from being pointed at the wrong tree.
+
+## What belongs in config.toml
+
+Paths, because they differ per machine, and the default port, because a person
+might want a different one. Nothing else. Values like the streaming chunk size,
+the rating-to-stars divisor or the progress interval are named constants beside
+the code that uses them: they have one correct value, and putting them in a file
+would invite tuning things that should not be tuned.
 
 ## Track resolution
 
