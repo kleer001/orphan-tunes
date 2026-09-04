@@ -77,9 +77,15 @@ the one you asked for, so a leftover process doesn't stop the launch.
   | **Startup** | Windows 95 | the gradient title bar |
   | **Chelan** | Windows XP | Luna blue and beige |
   | **Boring** | Hot Dog Stand | red, yellow, black, no mercy |
+  | **Azalea** | MySpace 2006 | not an OS at all: gradients until it hurts |
 
-  Mac eras are named for small towns in British Columbia, Windows eras for small
-  towns in Washington and Oregon. All seven towns are real.
+  Mac eras are named for small towns in British Columbia, the rest for small
+  towns in Washington and Oregon. All eight towns are real.
+
+  Boring's palette is taken from a real Program Manager screenshot rather than
+  memory: red `#ff0000` covers about half the screen, yellow `#ffff00` a quarter,
+  and title bars are red with yellow text — the inverse of what most tributes
+  assume. Buttons are `#c6c6c6` and dialog frames are white.
 - **Missing tracks** — shown greyed, with a Found column saying how each was
   located: `direct`, `moved`, `by size`, or `gone`. They're excluded from totals
   and never queued.

@@ -220,7 +220,7 @@ CSS = r"""
   --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
   --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
                inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
   --desk:#008080; --grain:none;
   --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
   --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
@@ -252,7 +252,7 @@ CSS = r"""
   --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
   --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
                inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
   --desk:#008080; --grain:none;
   --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
   --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
@@ -283,7 +283,7 @@ CSS = r"""
   --gear-radius:3px;
   --vlc-a:#5b9bd5; --vlc-b:#2a6db5; --vlc-line:#1c4f8a; --vlc-ink:#fff;
   --vlc-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.3);
-  --font:Tahoma,"Segoe UI",Verdana,sans-serif;
+  --font:Tahoma,"Segoe UI",Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
   --desk:linear-gradient(#4a7ec4,#7aa8dc) fixed; --grain:none;
   --radius:8px 8px 0 0; --lcd-radius:3px; --btn-radius:4px; --field-radius:3px;
   --bevel:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.25);
@@ -310,22 +310,24 @@ CSS = r"""
    red, yellow, black, and no mercy. The town is real and the name is the joke. */
 [data-skin="boring"]{
   --gear-radius:0;
-  --vlc-a:#ffff00; --vlc-b:#ffff00; --vlc-line:#000; --vlc-ink:#000;
-  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #ffff00;
-  --font:"MS Sans Serif",Tahoma,Geneva,Verdana,sans-serif;
+  --vlc-a:#c6c6c6; --vlc-b:#c6c6c6; --vlc-line:#000; --vlc-ink:#000;
+  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+               inset -2px -2px 0 #848484,inset 2px 2px 0 #fff;
+  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
   --desk:#ff0000; --grain:none; --ink:#000;
   --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
-  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #ffff00;
-  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #ffff00;
+  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
+          inset -2px -2px 0 #848484,inset 2px 2px 0 #fff;
+  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff;
   --pane-inset:inset 1px 1px 0 #000;
   --shadow:none; --lights:none;
-  --title-bg:linear-gradient(#ffff00,#ffff00); --title-ink:#000;
+  --title-bg:linear-gradient(#ff0000,#ff0000); --title-ink:#ffff00;
   --title-just:center; --title-h:20px; --title-weight:700;
   --chrome-a:#ff0000; --chrome-b:#ff0000; --chrome-line:#000; --chrome-ink:#ffff00;
   --win-line:#000;
   --lcd-a:#ffff00; --lcd-b:#ffff00; --lcd-line:#000; --lcd-ink:#000; --lcd-dim:#800000;
   --bar-track:#ffff00; --bar-line:#000; --bar-a:#ff0000; --bar-b:#ff0000;
-  --btn-a:#ffff00; --btn-b:#ffff00; --btn-line:#000; --btn-ink:#000;
+  --btn-a:#c6c6c6; --btn-b:#c6c6c6; --btn-line:#000; --btn-ink:#000;
   --pane:#ffff00; --src-bg:#ffff00; --src-line:#000;
   --src-head-a:#ff0000; --src-head-b:#ff0000; --src-head-ink:#ffff00;
   --sel:#ff0000; --sel-ink:#ffff00;
@@ -333,6 +335,45 @@ CSS = r"""
   --sorted-a:#ffff00; --sorted-b:#ffff00;
   --stripe:#ffe000; --rowsel:#ff0000;
   --scroll-track:#ffff00; --scroll-a:#ff0000; --scroll-b:#ff0000; --scroll-line:#000;
+}
+
+/* Azalea, OR -- not an operating system at all, but a 2006 band profile: the
+   MySpace blue chrome buried under whatever gradient the layout generator felt
+   like. The tag cloud on a layout site still reads music, autoplay, gif, emo,
+   black, pink, scene, goth -- so: hot pink, purple, cyan, on black, in Comic
+   Sans. Every token that accepts a gradient gets one.                        */
+[data-skin="azalea"]{
+  --font:"Comic Sans MS","Chalkboard SE","Comic Neue",cursive,sans-serif;
+  --ink:#ffffff;
+  --desk:linear-gradient(135deg,#ff00cc 0%,#7a00ff 25%,#00e5ff 50%,#7a00ff 75%,#ff00cc 100%) fixed;
+  --grain:none;
+  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0; --gear-radius:0;
+  --bevel:inset 0 0 0 1px #00e5ff,0 0 8px #ff00cc;
+  --bevel-in:inset 0 0 10px #ff00cc;
+  --pane-inset:inset 0 0 14px rgba(255,0,204,.75);
+  --shadow:0 0 40px #ff00cc,0 0 90px #7a00ff;
+  --lights:none;
+  --title-bg:linear-gradient(90deg,#ff00cc,#ffee00 20%,#00ff66 40%,#00e5ff 60%,#7a00ff 80%,#ff00cc);
+  --title-ink:#000; --title-just:center; --title-h:24px; --title-weight:700;
+  --chrome-a:#1a0033; --chrome-b:#4b0082; --chrome-line:#ff00cc; --chrome-ink:#00ff66;
+  --win-line:#00e5ff;
+  --lcd-a:#2a003f; --lcd-b:#00223f; --lcd-line:#00e5ff;
+  --lcd-ink:#ffee00; --lcd-dim:#00ff66;
+  --bar-track:#12001f; --bar-line:#ff00cc;
+  --bar-a:#00ff66; --bar-b:#ffee00;
+  --btn-a:#ff00cc; --btn-b:#7a00ff; --btn-line:#00e5ff; --btn-ink:#ffee00;
+  --vlc-a:#00ff66; --vlc-b:#00a3ff; --vlc-line:#ff00cc; --vlc-ink:#1a0033;
+  --vlc-shadow:0 0 10px #00ff66;
+  --pane:linear-gradient(180deg,#12001f,#2a003f 40%,#12001f);
+  --src-bg:linear-gradient(180deg,#4b0082,#ff00cc 50%,#4b0082);
+  --src-line:#00e5ff;
+  --src-head-a:#ffee00; --src-head-b:#ff8800; --src-head-ink:#4b0082;
+  --sel:#00ff66; --sel-ink:#1a0033;
+  --head-a:#ffee00; --head-b:#ff8800; --head-line:#ff00cc;
+  --head-ink:#4b0082; --head-div:#ff00cc;
+  --sorted-a:#00e5ff; --sorted-b:#00ff66;
+  --stripe:rgba(255,0,204,.22); --rowsel:#00ff66;
+  --scroll-track:#1a0033; --scroll-a:#ff00cc; --scroll-b:#00e5ff; --scroll-line:#ffee00;
 }
 
 /* ---- Layout ---------------------------------------------------------- */
@@ -511,7 +552,8 @@ const SKINS=[["greenwood","Greenwood","iTunes 1-4"],
              ["concrete","Concrete","Windows 3.1"],
              ["startup","Startup","Windows 95"],
              ["chelan","Chelan","Windows XP"],
-             ["boring","Boring","Hot Dog Stand"]];
+             ["boring","Boring","Hot Dog Stand"],
+             ["azalea","Azalea","MySpace 2006"]];
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
