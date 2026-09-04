@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "type": "python-app",
+  "license": "MIT",
+  "created": "2026-09-04T07:46:48",
+  "flags": {
+    "public": false,
+    "no_venv": false,
+    "no_claude": false,
+    "ci": false,
+    "local": true
+  }
+}
