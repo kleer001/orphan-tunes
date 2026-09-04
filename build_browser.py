@@ -309,32 +309,36 @@ CSS = r"""
 /* Boring, OR -- Hot Dog Stand. The Windows 3.1 scheme nobody chose on purpose:
    red, yellow, black, and no mercy. The town is real and the name is the joke. */
 [data-skin="boring"]{
-  --gear-radius:0;
-  --vlc-a:#c6c6c6; --vlc-b:#c6c6c6; --vlc-line:#000; --vlc-ink:#000;
-  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-               inset -2px -2px 0 #848484,inset 2px 2px 0 #fff;
   --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
-  --desk:#ff0000; --grain:none; --ink:#000;
-  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
-  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-          inset -2px -2px 0 #848484,inset 2px 2px 0 #fff;
-  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff;
-  --pane-inset:inset 1px 1px 0 #000;
-  --shadow:none; --lights:none;
-  --title-bg:linear-gradient(#ff0000,#ff0000); --title-ink:#ffff00;
+  --ink:#1a0000;
+  --desk:linear-gradient(#ff2a00,#cc0000); --grain:none;
+  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0; --gear-radius:0;
+  /* the 16-colour palette had no bevels to speak of, so these are yellow-on-
+     dark-red rather than the usual white-on-grey */
+  --bevel:inset -1px -1px 0 #800000,inset 1px 1px 0 #ffff99,
+          inset -2px -2px 0 #b30000,inset 2px 2px 0 #ffee55;
+  --bevel-in:inset 1px 1px 0 #800000,inset -1px -1px 0 #ffff99;
+  --pane-inset:inset 0 1px 3px rgba(128,0,0,.55);
+  --shadow:0 6px 20px rgba(90,0,0,.55); --lights:none;
+  --title-bg:linear-gradient(#ff4422,#e00000 45%,#c00000); --title-ink:#ffff00;
   --title-just:center; --title-h:20px; --title-weight:700;
-  --chrome-a:#ff0000; --chrome-b:#ff0000; --chrome-line:#000; --chrome-ink:#ffff00;
-  --win-line:#000;
-  --lcd-a:#ffff00; --lcd-b:#ffff00; --lcd-line:#000; --lcd-ink:#000; --lcd-dim:#800000;
-  --bar-track:#ffff00; --bar-line:#000; --bar-a:#ff0000; --bar-b:#ff0000;
-  --btn-a:#c6c6c6; --btn-b:#c6c6c6; --btn-line:#000; --btn-ink:#000;
-  --pane:#ffff00; --src-bg:#ffff00; --src-line:#000;
-  --src-head-a:#ff0000; --src-head-b:#ff0000; --src-head-ink:#ffff00;
-  --sel:#ff0000; --sel-ink:#ffff00;
-  --head-a:#ff0000; --head-b:#ff0000; --head-line:#000; --head-ink:#ffff00; --head-div:#000;
-  --sorted-a:#ffff00; --sorted-b:#ffff00;
-  --stripe:#ffe000; --rowsel:#ff0000;
-  --scroll-track:#ffff00; --scroll-a:#ff0000; --scroll-b:#ff0000; --scroll-line:#000;
+  --chrome-a:#ff2a12; --chrome-b:#d40000; --chrome-line:#800000; --chrome-ink:#ffee00;
+  --win-line:#5a0000;
+  --lcd-a:#ffff44; --lcd-b:#ffcc00; --lcd-line:#800000;
+  --lcd-ink:#8b0000; --lcd-dim:#b32400;
+  --bar-track:#8b0000; --bar-line:#4d0000; --bar-a:#ffee00; --bar-b:#ffa000;
+  --btn-a:#ffee44; --btn-b:#ffab00; --btn-line:#800000; --btn-ink:#8b0000;
+  --vlc-a:#ff5522; --vlc-b:#c00000; --vlc-line:#5a0000; --vlc-ink:#ffff00;
+  --vlc-shadow:inset 0 1px 0 #ffbb88,0 1px 3px rgba(90,0,0,.6);
+  --pane:linear-gradient(#ffff33,#ffe97a);
+  --src-bg:linear-gradient(#ffd700,#ffb300); --src-line:#800000;
+  --src-head-a:#ff4422; --src-head-b:#c40000; --src-head-ink:#ffff00;
+  --sel:#c00000; --sel-ink:#ffff00;
+  --head-a:#ff3a18; --head-b:#c40000; --head-line:#800000;
+  --head-ink:#ffee00; --head-div:#ff7a55;
+  --sorted-a:#ffcc00; --sorted-b:#ff8c00;
+  --stripe:#fff08a; --rowsel:#c00000;
+  --scroll-track:#ffd700; --scroll-a:#ff3a18; --scroll-b:#aa0000; --scroll-line:#800000;
 }
 
 /* Azalea, OR -- not an operating system at all, but a 2006 band profile: the

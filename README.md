@@ -86,10 +86,12 @@ pane rather than pushing the page around.
   Mac eras are named for small towns in British Columbia, the rest for small
   towns in Washington and Oregon. All eight towns are real.
 
-  Boring's palette is taken from a real Program Manager screenshot rather than
-  memory: red `#ff0000` covers about half the screen, yellow `#ffff00` a quarter,
-  and title bars are red with yellow text — the inverse of what most tributes
-  assume. Buttons are `#c6c6c6` and dialog frames are white.
+  Boring's structure comes from a real Program Manager screenshot rather than
+  memory: red covers about half the screen, yellow a quarter, and title bars are
+  red with yellow text — the inverse of what most tributes assume. It parts
+  company with the original on the grey: every control is red or yellow here,
+  with tonal variation and gentle gradients the 16-colour palette could not have
+  produced. Faithful in shape, committed in colour.
 - **Missing tracks** — shown greyed, with a Found column saying how each was
   located: `direct`, `moved`, `by size`, or `gone`. They're excluded from totals
   and never queued.

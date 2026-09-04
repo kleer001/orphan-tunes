@@ -11,8 +11,12 @@ BASE = "greenwood"          # lives on :root, so it needs no attribute
 OFFERED = re.findall(r'\["(\w+)","([^"]+)","([^"]+)"\]', JS)
 
 
+def strip_comments(css):
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
 def skin_blocks():
-    return dict(re.findall(r'\[data-skin="(\w+)"\]\{([^}]*)\}', CSS))
+    return dict(re.findall(r'\[data-skin="(\w+)"\]\{([^}]*)\}', strip_comments(CSS)))
 
 
 def test_the_page_offers_some_skins():
@@ -59,7 +63,8 @@ def test_skins_only_override_tokens_never_layout():
 
 
 def test_the_base_defines_every_token_a_skin_overrides():
-    base = set(re.findall(r'(--[\w-]+):', CSS.split("[data-skin=")[0]))
+    base = set(re.findall(r'(--[\w-]+):',
+                          strip_comments(CSS).split("[data-skin=")[0]))
     for skin_id, block in skin_blocks().items():
         for token in re.findall(r'(--[\w-]+):', block):
             assert token in base, f"{skin_id} sets {token}, never defined on :root"
