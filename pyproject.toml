@@ -7,7 +7,7 @@ name = "you_tunes_browser"
 version = "0.1.0"
 description = "TODO: describe you_tunes_browser"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"   # tomllib
 license = { text = "MIT" }
 authors = [{ name = "kleer001" }]
 dependencies = []

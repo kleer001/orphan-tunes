@@ -15,3 +15,6 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Library export and anything derived from it: personal data, never committed.
+data/

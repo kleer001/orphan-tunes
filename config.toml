@@ -1,0 +1,18 @@
+# Paths this machine's copy of the library lives at. Everything else is derived.
+
+# The exported iTunes library. On a Mac this is "iTunes Music Library.xml",
+# usually beside the iTunes Library.itl file.
+library = "data/iTunes Music Library.xml"
+
+[music]
+# The library XML records an absolute path for every track, under whatever the
+# "Music Folder" key says. That prefix is rewritten to local_root on the way in,
+# which is what lets a library exported on one machine resolve on another.
+recorded_root = "/Users/you/Music/iTunes/iTunes Media"
+local_root = "/mnt/archive/iTunes Media"
+
+[output]
+# .m3u8 files, one per playlist.
+playlists = "/mnt/archive/playlists"
+# The browsable page, its data, and the playlist the Play button hands to VLC.
+browser = "/mnt/archive/browser"

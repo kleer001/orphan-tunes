@@ -1,39 +1,79 @@
 # you_tunes_browser
 
-TODO: describe you_tunes_browser
+Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
+`iTunes Music Library.xml` plus the local audio files. Local only — no network.
 
 ## Quick commands
 
 - Activate env: `source .venv/bin/activate`
 - Install deps: `pip install -e ".[dev]"`
-- Run: `python main.py`
-- Test: `pytest`
+- Write playlists: `python make_playlists.py`
+- Build the page: `python build_browser.py`
+- Serve it: `python serve.py <browser_dir> 8100`
 - Lint/format: `ruff check . && ruff format .`
 
 ## Project structure
 
-- `main.py` — entry point
-- `tests/` — pytest test suite
-- `pyproject.toml` — metadata, deps, tool config
-- `.scaffold.json` — record of how this repo was generated (do not edit by hand)
+- `config.py` / `config.toml` — every machine-specific path. Nothing else should
+  hardcode one.
+- `make_playlists.py` — library XML → `.m3u8` files. Owns `locate()` (find a
+  track on disk) and `safe_name()` (playlist title → filename).
+- `build_browser.py` — library XML → `index.html`, `data.json`, `paths.json`.
+  Imports `locate` and `safe_name` rather than reimplementing them; if track
+  resolution changes, it changes in one place.
+- `serve.py` — static server plus `POST /play`.
+
+## Track resolution
+
+Three steps, in order, in `locate()`:
+
+1. Rewrite the XML's recorded path prefix to `local_root` and test it.
+2. Failing that, look the bare filename up across the library; accept a single
+   unambiguous hit.
+3. Failing that, when several files share the name, take the one whose byte size
+   matches the `Size` the library recorded.
+
+Anything still unresolved is counted and reported. Never guess a track.
+
+## The /play endpoint
+
+The page posts `{name, indices}` — row numbers into the track pool, never paths.
+The server maps them through `paths.json`, which the browser never receives,
+then writes `_now_playing.m3u8` and launches VLC. Indices outside the pool are
+rejected. Keep it that way: any change that lets the page name a path directly
+turns a local convenience into an arbitrary-file-open.
+
+`SIGCHLD` is set to `SIG_IGN` so launched VLC processes are reaped; without it
+every click leaves a zombie.
+
+## Column data
+
+`FIELDS` in `build_browser.py` is the single list of what gets carried out of the
+library and how it renders. The fourth element is whether a column shows by
+default; everything else is reachable from View Options. Adding a field means
+adding one row there — the page builds its columns from the data.
+
+Only genuine plumbing is excluded: `Track ID`, `Persistent ID`, `Location`,
+`Track Type`, the folder-count pair, the `Sort *` keys, the `* Computed` flags.
 
 ## Testing
 
-Run `pytest` from repo root. Tests live in `tests/`. New features need at least one test that fails before the change and passes after.
+Tests live in `tests/`. The generators are verifiable against real output: track
+counts, resolution rates, and the `.m3u8` line count should match what the
+scripts report. When changing layout, measure the DOM rather than judging from a
+screenshot — column widths and scroll behaviour are easy to misread by eye.
 
 ## Code style
 
 - `ruff` is the linter and formatter — config in `pyproject.toml`.
 - Naming: `snake_case` functions/vars, `PascalCase` classes.
 - Imports: stdlib → third-party → local.
-- Comments: explain *why*, not *what*. Skip them on self-evident code.
-
-## Git
-
-Atomic commits. Conventional Commits: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`.
+- Comments: explain *why*, not *what*.
+- Requires Python 3.11+ (`tomllib`).
 
 ## Boundaries
 
 - Don't touch `.scaffold.json` by hand.
-- Trust internal functions; validate at boundaries (CLI args, file inputs, network responses).
-- One path, no fallbacks. Fail loudly. (See `~/.claude/CLAUDE.md` for the full philosophy.)
+- `data/` is gitignored and holds personal listening history. Never commit it.
+- These scripts only ever read the music library. Nothing here renames, moves,
+  or deletes audio.
