@@ -13,6 +13,7 @@ import os
 import plistlib
 import sys
 from collections import defaultdict
+from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
 from make_playlists import locate  # the .m3u8 writer's own file lookup
@@ -133,253 +134,530 @@ def build_data(out_dir):
     return len(playlists), refs
 
 
-CSS = r"""
-/* ---- Skins ------------------------------------------------------------
-   Each era is a swap of these tokens. Only the eras that kept the same
-   two-pane layout are offered: iTunes 11 hid the sidebar and 12 moved to a
-   tab bar, so painting those colours on this layout would be a costume, not
-   a skin. Named for small towns in British Columbia.
-   Greenwood is the default and matches iTunes 1-4.                        */
-:root{
-  /* shape and type, so a skin can stop being Mac-shaped */
-  --font:"Lucida Grande","Segoe UI",Helvetica,Arial,sans-serif;
-  --ink:#000;
-  --radius:7px; --lcd-radius:9px; --btn-radius:50%; --field-radius:10px;
-  --bevel:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28);
-  --bevel-in:inset 0 2px 4px rgba(0,0,0,.3);
-  --pane-inset:inset 0 1px 3px rgba(0,0,0,.3);
-  --lights:flex;
-  --gear-radius:4px;
-  --vlc-a:#6f6f6f; --vlc-b:#3a3a3a; --vlc-line:#2f2f2f; --vlc-ink:#f4f4f4;
-  --vlc-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px rgba(0,0,0,.4);
-  --title-bg:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b));
-  --title-ink:#3a3a3a; --title-just:center; --title-pad:0;
-  --title-h:22px; --title-weight:600;
-  --shadow:0 12px 34px rgba(0,0,0,.45);
-
-  --desk:#6b6b6b;
-  --grain:repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(0,0,0,.035) 1px 2px);
-  --chrome-a:#e8e8e8; --chrome-b:#d0d0d0; --chrome-line:#a4a4a4; --chrome-ink:#3a3a3a;
-  --win-line:#6f6f6f;
-  --lcd-a:#d7dbcd; --lcd-b:#c9cebe; --lcd-line:#8e9384; --lcd-ink:#20241c; --lcd-dim:#4a5044;
-  --bar-track:#b9bfae; --bar-line:#949a8a; --bar-a:#8f9c82; --bar-b:#6f7c63;
-  --btn-a:#fdfdfd; --btn-b:#d7d7d7; --btn-line:#8d8d8d; --btn-ink:#3c3c3c;
-  --pane:#fff;
-  --src-bg:#fff; --src-line:#9a9a9a;
-  --src-head-a:#ededed; --src-head-b:#dcdcdc; --src-head-ink:#555;
-  --sel:#3a6ea5; --sel-ink:#fff;
-  --head-a:#f0f0f0; --head-b:#dadada; --head-line:#9a9a9a; --head-ink:#333; --head-div:#c4c4c4;
-  --sorted-a:#dfe7f2; --sorted-b:#c9d6e8;
-  --stripe:#edf3fb; --rowsel:#b6c8de;
-  --scroll-track:#f0f0f0; --scroll-a:#c8d4e4; --scroll-b:#9db2cc; --scroll-line:#7f92aa;
-}
-
-/* Tofino -- iTunes 5-6. The metal grain dropped for flat grey; coastal fog. */
-[data-skin="tofino"]{
-  --desk:#7a7a7a;
-  --grain:none;
-  --chrome-a:#f4f4f4; --chrome-b:#dedede; --chrome-line:#b0b0b0; --chrome-ink:#404040;
-  --win-line:#8a8a8a;
-  --lcd-a:#e4e6e4; --lcd-b:#d4d7d4; --lcd-line:#a6a9a6; --lcd-ink:#2a2c2a; --lcd-dim:#5b5f5b;
-  --bar-track:#c6c9c6; --bar-line:#a2a5a2; --bar-a:#9aa09a; --bar-b:#7d827d;
-  --btn-a:#fff; --btn-b:#e2e2e2; --btn-line:#a6a6a6;
-  --src-head-a:#f4f4f4; --src-head-b:#e6e6e6;
-  --head-a:#f7f7f7; --head-b:#e6e6e6; --head-line:#b4b4b4; --head-div:#d6d6d6;
-  --sorted-a:#e8eef6; --sorted-b:#d8e2ee;
-  --stripe:#f1f4f8; --rowsel:#c3d1e0;
-  --scroll-track:#f6f6f6; --scroll-a:#d8d8d8; --scroll-b:#b4b4b4; --scroll-line:#a0a0a0;
-}
-
-/* Kaslo -- iTunes 7-10. The blue sidebar era; lake water off the Kootenays. */
-[data-skin="kaslo"]{
-  --desk:#5f6672;
-  --grain:none;
-  --chrome-a:#e2e6ea; --chrome-b:#c8cfd6; --chrome-line:#9aa3ad; --chrome-ink:#333b44;
-  --win-line:#69737e;
-  --lcd-a:#dfe4e8; --lcd-b:#ccd3da; --lcd-line:#8f9aa4; --lcd-ink:#1e262e; --lcd-dim:#4d5761;
-  --bar-track:#bcc5cd; --bar-line:#93a0aa; --bar-a:#8497a8; --bar-b:#63788b;
-  --btn-a:#fff; --btn-b:#dbe1e7; --btn-line:#98a2ac;
-  --src-bg:#dfe6ee; --src-line:#a6b0bb;
-  --src-head-a:#e9eef4; --src-head-b:#d6dee7; --src-head-ink:#4a5560;
-  --sel:#4a7fc1; --sel-ink:#fff;
-  --head-a:#eef2f6; --head-b:#d9e0e8; --head-line:#a2acb6; --head-ink:#2f3841; --head-div:#c2ccd6;
-  --sorted-a:#dde8f6; --sorted-b:#c4d6ec;
-  --stripe:#eaf0f8; --rowsel:#b3c7de;
-  --scroll-track:#e8edf2; --scroll-a:#c2d0e0; --scroll-b:#96a9be; --scroll-line:#7d90a5;
+# Every colour, shape and type value the page uses. The stylesheet is generated
+# from these, so a skin cannot reference a token that does not exist, and cannot
+# be offered without being defined.
+BASE_TOKENS = {
+    "--bar-a": "#8f9c82",
+    "--bar-b": "#6f7c63",
+    "--bar-line": "#949a8a",
+    "--bar-track": "#b9bfae",
+    "--bevel": "inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.28)",
+    "--bevel-in": "inset 0 2px 4px rgba(0,0,0,.3)",
+    "--btn-a": "#fdfdfd",
+    "--btn-b": "#d7d7d7",
+    "--btn-ink": "#3c3c3c",
+    "--btn-line": "#8d8d8d",
+    "--btn-radius": "50%",
+    "--chrome-a": "#e8e8e8",
+    "--chrome-b": "#d0d0d0",
+    "--chrome-ink": "#3a3a3a",
+    "--chrome-line": "#a4a4a4",
+    "--desk": "#6b6b6b",
+    "--field-radius": "10px",
+    "--font": "\"Lucida Grande\",\"Segoe UI\",Helvetica,Arial,sans-serif",
+    "--gear-radius": "4px",
+    "--grain": "repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(0,0,0,.035) 1px 2px)",  # noqa: E501
+    "--head-a": "#f0f0f0",
+    "--head-b": "#dadada",
+    "--head-div": "#c4c4c4",
+    "--head-ink": "#333",
+    "--head-line": "#9a9a9a",
+    "--ink": "#000",
+    "--lcd-a": "#d7dbcd",
+    "--lcd-b": "#c9cebe",
+    "--lcd-dim": "#4a5044",
+    "--lcd-ink": "#20241c",
+    "--lcd-line": "#8e9384",
+    "--lcd-radius": "9px",
+    "--lights": "flex",
+    "--pane": "#fff",
+    "--pane-inset": "inset 0 1px 3px rgba(0,0,0,.3)",
+    "--radius": "7px",
+    "--rowsel": "#b6c8de",
+    "--scroll-a": "#c8d4e4",
+    "--scroll-b": "#9db2cc",
+    "--scroll-line": "#7f92aa",
+    "--scroll-track": "#f0f0f0",
+    "--sel": "#3a6ea5",
+    "--sel-ink": "#fff",
+    "--shadow": "0 12px 34px rgba(0,0,0,.45)",
+    "--sorted-a": "#dfe7f2",
+    "--sorted-b": "#c9d6e8",
+    "--src-bg": "#fff",
+    "--src-head-a": "#ededed",
+    "--src-head-b": "#dcdcdc",
+    "--src-head-ink": "#555",
+    "--src-line": "#9a9a9a",
+    "--stripe": "#edf3fb",
+    "--title-bg": "var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b))",
+    "--title-h": "22px",
+    "--title-ink": "#3a3a3a",
+    "--title-just": "center",
+    "--title-pad": "0",
+    "--title-weight": "600",
+    "--vlc-a": "#6f6f6f",
+    "--vlc-b": "#3a3a3a",
+    "--vlc-ink": "#f4f4f4",
+    "--vlc-line": "#2f2f2f",
+    "--vlc-shadow": "inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px rgba(0,0,0,.4)",
+    "--win-line": "#6f6f6f",
 }
 
 
-/* --- Redmond's turn. Named for small towns in Washington and Oregon. ------
-   These change shape as well as colour: square corners, chunky bevels, a real
-   title bar. Still tokens only, so the layout underneath is untouched.       */
+class Skin(NamedTuple):
+    """One era. `tokens` overrides BASE_TOKENS; empty means it *is* the base."""
 
-/* Concrete, WA -- Windows 3.1. Teal desktop, solid navy title, centred, and
-   the raised grey bevel on everything. There is a real town called Concrete. */
-[data-skin="concrete"]{
-  --gear-radius:0;
-  --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
-  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-               inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
-  --desk:#008080; --grain:none;
-  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
-  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-          inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff,
-             inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf;
-  --pane-inset:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;
-  --shadow:none; --lights:none;
-  --title-bg:linear-gradient(#000080,#000080); --title-ink:#fff;
-  --title-just:center; --title-h:20px; --title-weight:700;
-  --chrome-a:#c0c0c0; --chrome-b:#c0c0c0; --chrome-line:#000; --chrome-ink:#000;
-  --win-line:#000;
-  --lcd-a:#c0c0c0; --lcd-b:#c0c0c0; --lcd-line:#808080; --lcd-ink:#000; --lcd-dim:#000;
-  --bar-track:#fff; --bar-line:#808080; --bar-a:#000080; --bar-b:#000080;
-  --btn-a:#c0c0c0; --btn-b:#c0c0c0; --btn-line:#000; --btn-ink:#000;
-  --pane:#fff; --src-bg:#fff; --src-line:#808080;
-  --src-head-a:#c0c0c0; --src-head-b:#c0c0c0; --src-head-ink:#000;
-  --sel:#000080; --sel-ink:#fff;
-  --head-a:#c0c0c0; --head-b:#c0c0c0; --head-line:#808080; --head-ink:#000; --head-div:#808080;
-  --sorted-a:#a0a0a0; --sorted-b:#a0a0a0;
-  --stripe:#fff; --rowsel:#000080;
-  --scroll-track:#dfdfdf; --scroll-a:#c0c0c0; --scroll-b:#c0c0c0; --scroll-line:#000;
-}
+    id: str
+    label: str
+    era: str
+    tokens: dict
 
-/* Startup, WA -- Windows 95. The gradient title bar, left-aligned. A real town,
-   and the only sensible name for the release that introduced the Start button. */
-[data-skin="startup"]{
-  --gear-radius:0;
-  --vlc-a:#c0c0c0; --vlc-b:#c0c0c0; --vlc-line:#000; --vlc-ink:#000;
-  --vlc-shadow:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-               inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
-  --desk:#008080; --grain:none;
-  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0;
-  --bevel:inset -1px -1px 0 #000,inset 1px 1px 0 #fff,
-          inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf;
-  --bevel-in:inset 1px 1px 0 #000,inset -1px -1px 0 #fff,
-             inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf;
-  --pane-inset:inset 1px 1px 0 #808080,inset -1px -1px 0 #fff;
-  --shadow:none; --lights:none;
-  --title-bg:linear-gradient(90deg,#000080,#1084d0); --title-ink:#fff;
-  --title-just:flex-start; --title-pad:0 6px; --title-h:20px; --title-weight:700;
-  --chrome-a:#c0c0c0; --chrome-b:#c0c0c0; --chrome-line:#808080; --chrome-ink:#000;
-  --win-line:#000;
-  --lcd-a:#c0c0c0; --lcd-b:#c0c0c0; --lcd-line:#808080; --lcd-ink:#000; --lcd-dim:#404040;
-  --bar-track:#fff; --bar-line:#808080; --bar-a:#000080; --bar-b:#1084d0;
-  --btn-a:#c0c0c0; --btn-b:#c0c0c0; --btn-line:#000; --btn-ink:#000;
-  --pane:#fff; --src-bg:#fff; --src-line:#808080;
-  --src-head-a:#c0c0c0; --src-head-b:#c0c0c0; --src-head-ink:#000;
-  --sel:#000080; --sel-ink:#fff;
-  --head-a:#c0c0c0; --head-b:#c0c0c0; --head-line:#808080; --head-ink:#000; --head-div:#dfdfdf;
-  --sorted-a:#dfdfdf; --sorted-b:#c0c0c0;
-  --stripe:#fff; --rowsel:#000080;
-  --scroll-track:#dfdfdf; --scroll-a:#c0c0c0; --scroll-b:#c0c0c0; --scroll-line:#808080;
-}
 
-/* Chelan, WA -- Windows XP Luna. Deep lake blue, and the beige workspace that
-   came with it. Rounded again, but only at the top.                          */
-[data-skin="chelan"]{
-  --gear-radius:3px;
-  --vlc-a:#5b9bd5; --vlc-b:#2a6db5; --vlc-line:#1c4f8a; --vlc-ink:#fff;
-  --vlc-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.3);
-  --font:Tahoma,"Segoe UI",Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
-  --desk:linear-gradient(#4a7ec4,#7aa8dc) fixed; --grain:none;
-  --radius:8px 8px 0 0; --lcd-radius:3px; --btn-radius:4px; --field-radius:3px;
-  --bevel:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.25);
-  --bevel-in:inset 0 2px 4px rgba(0,0,0,.28);
-  --pane-inset:inset 0 1px 3px rgba(0,0,0,.22);
-  --shadow:0 10px 30px rgba(0,0,0,.4); --lights:none;
-  --title-bg:linear-gradient(#0a55d4,#3a86e8 8%,#2c76dc 40%,#1a5fd0); --title-ink:#fff;
-  --title-just:flex-start; --title-pad:0 10px; --title-h:26px; --title-weight:700;
-  --chrome-a:#f6f4ec; --chrome-b:#ece9d8; --chrome-line:#aca899; --chrome-ink:#22314a;
-  --win-line:#0a3f9c;
-  --lcd-a:#fbfaf6; --lcd-b:#ece9d8; --lcd-line:#aca899; --lcd-ink:#1b2740; --lcd-dim:#5a6478;
-  --bar-track:#e6e3d4; --bar-line:#aca899; --bar-a:#4f9d3a; --bar-b:#2f7a20;
-  --btn-a:#fdfdfb; --btn-b:#e8e5d6; --btn-line:#a9a596; --btn-ink:#22314a;
-  --pane:#fff; --src-bg:#eef3fb; --src-line:#a7b6cc;
-  --src-head-a:#f6f4ec; --src-head-b:#e4e0cf; --src-head-ink:#3b4a63;
-  --sel:#316ac5; --sel-ink:#fff;
-  --head-a:#fbfaf6; --head-b:#e8e5d6; --head-line:#aca899; --head-ink:#22314a; --head-div:#d4d0c0;
-  --sorted-a:#dbe6f8; --sorted-b:#bed3f2;
-  --stripe:#f3f6fc; --rowsel:#c1d7f5;
-  --scroll-track:#f1efe4; --scroll-a:#dfeaf8; --scroll-b:#9dbbe4; --scroll-line:#7f9ec9;
-}
+SKINS = [
+    # iTunes 1-4. Brushed metal over a soft grey. The default, and the only
+    # skin that lives on :root -- it needs no attribute to be correct.
+    Skin("greenwood", "Greenwood", "iTunes 1-4",
+         {}),
+    # iTunes 5-6. The metal grain dropped for flat grey; coastal fog.
+    Skin("tofino", "Tofino", "iTunes 5-6",
+         {
+             "--bar-a": "#9aa09a",
+             "--bar-b": "#7d827d",
+             "--bar-line": "#a2a5a2",
+             "--bar-track": "#c6c9c6",
+             "--btn-a": "#fff",
+             "--btn-b": "#e2e2e2",
+             "--btn-line": "#a6a6a6",
+             "--chrome-a": "#f4f4f4",
+             "--chrome-b": "#dedede",
+             "--chrome-ink": "#404040",
+             "--chrome-line": "#b0b0b0",
+             "--desk": "#7a7a7a",
+             "--grain": "none",
+             "--head-a": "#f7f7f7",
+             "--head-b": "#e6e6e6",
+             "--head-div": "#d6d6d6",
+             "--head-line": "#b4b4b4",
+             "--lcd-a": "#e4e6e4",
+             "--lcd-b": "#d4d7d4",
+             "--lcd-dim": "#5b5f5b",
+             "--lcd-ink": "#2a2c2a",
+             "--lcd-line": "#a6a9a6",
+             "--rowsel": "#c3d1e0",
+             "--scroll-a": "#d8d8d8",
+             "--scroll-b": "#b4b4b4",
+             "--scroll-line": "#a0a0a0",
+             "--scroll-track": "#f6f6f6",
+             "--sorted-a": "#e8eef6",
+             "--sorted-b": "#d8e2ee",
+             "--src-head-a": "#f4f4f4",
+             "--src-head-b": "#e6e6e6",
+             "--stripe": "#f1f4f8",
+             "--win-line": "#8a8a8a",
+         }),
+    # iTunes 7-10. The blue sidebar era; lake water off the Kootenays.
+    Skin("kaslo", "Kaslo", "iTunes 7-10",
+         {
+             "--bar-a": "#8497a8",
+             "--bar-b": "#63788b",
+             "--bar-line": "#93a0aa",
+             "--bar-track": "#bcc5cd",
+             "--btn-a": "#fff",
+             "--btn-b": "#dbe1e7",
+             "--btn-line": "#98a2ac",
+             "--chrome-a": "#e2e6ea",
+             "--chrome-b": "#c8cfd6",
+             "--chrome-ink": "#333b44",
+             "--chrome-line": "#9aa3ad",
+             "--desk": "#5f6672",
+             "--grain": "none",
+             "--head-a": "#eef2f6",
+             "--head-b": "#d9e0e8",
+             "--head-div": "#c2ccd6",
+             "--head-ink": "#2f3841",
+             "--head-line": "#a2acb6",
+             "--lcd-a": "#dfe4e8",
+             "--lcd-b": "#ccd3da",
+             "--lcd-dim": "#4d5761",
+             "--lcd-ink": "#1e262e",
+             "--lcd-line": "#8f9aa4",
+             "--rowsel": "#b3c7de",
+             "--scroll-a": "#c2d0e0",
+             "--scroll-b": "#96a9be",
+             "--scroll-line": "#7d90a5",
+             "--scroll-track": "#e8edf2",
+             "--sel": "#4a7fc1",
+             "--sel-ink": "#fff",
+             "--sorted-a": "#dde8f6",
+             "--sorted-b": "#c4d6ec",
+             "--src-bg": "#dfe6ee",
+             "--src-head-a": "#e9eef4",
+             "--src-head-b": "#d6dee7",
+             "--src-head-ink": "#4a5560",
+             "--src-line": "#a6b0bb",
+             "--stripe": "#eaf0f8",
+             "--win-line": "#69737e",
+         }),
+    # Windows 3.1. Teal desktop, solid navy title, centred, and the raised
+    # grey bevel on everything. There is a real town called Concrete.
+    Skin("concrete", "Concrete", "Windows 3.1",
+         {
+             "--bar-a": "#000080",
+             "--bar-b": "#000080",
+             "--bar-line": "#808080",
+             "--bar-track": "#fff",
+             "--bevel": "inset -1px -1px 0 #000,inset 1px 1px 0 #fff, inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf",  # noqa: E501
+             "--bevel-in": "inset 1px 1px 0 #000,inset -1px -1px 0 #fff, inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf",  # noqa: E501
+             "--btn-a": "#c0c0c0",
+             "--btn-b": "#c0c0c0",
+             "--btn-ink": "#000",
+             "--btn-line": "#000",
+             "--btn-radius": "0",
+             "--chrome-a": "#c0c0c0",
+             "--chrome-b": "#c0c0c0",
+             "--chrome-ink": "#000",
+             "--chrome-line": "#000",
+             "--desk": "#008080",
+             "--field-radius": "0",
+             "--font": "\"MS Sans Serif\",Tahoma,Verdana,\"Liberation Sans\",\"DejaVu Sans\",sans-serif",  # noqa: E501
+             "--gear-radius": "0",
+             "--grain": "none",
+             "--head-a": "#c0c0c0",
+             "--head-b": "#c0c0c0",
+             "--head-div": "#808080",
+             "--head-ink": "#000",
+             "--head-line": "#808080",
+             "--lcd-a": "#c0c0c0",
+             "--lcd-b": "#c0c0c0",
+             "--lcd-dim": "#000",
+             "--lcd-ink": "#000",
+             "--lcd-line": "#808080",
+             "--lcd-radius": "0",
+             "--lights": "none",
+             "--pane": "#fff",
+             "--pane-inset": "inset 1px 1px 0 #808080,inset -1px -1px 0 #fff",
+             "--radius": "0",
+             "--rowsel": "#000080",
+             "--scroll-a": "#c0c0c0",
+             "--scroll-b": "#c0c0c0",
+             "--scroll-line": "#000",
+             "--scroll-track": "#dfdfdf",
+             "--sel": "#000080",
+             "--sel-ink": "#fff",
+             "--shadow": "none",
+             "--sorted-a": "#a0a0a0",
+             "--sorted-b": "#a0a0a0",
+             "--src-bg": "#fff",
+             "--src-head-a": "#c0c0c0",
+             "--src-head-b": "#c0c0c0",
+             "--src-head-ink": "#000",
+             "--src-line": "#808080",
+             "--stripe": "#fff",
+             "--title-bg": "linear-gradient(#000080,#000080)",
+             "--title-h": "20px",
+             "--title-ink": "#fff",
+             "--title-just": "center",
+             "--title-weight": "700",
+             "--vlc-a": "#c0c0c0",
+             "--vlc-b": "#c0c0c0",
+             "--vlc-ink": "#000",
+             "--vlc-line": "#000",
+             "--vlc-shadow": "inset -1px -1px 0 #000,inset 1px 1px 0 #fff, inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf",  # noqa: E501
+             "--win-line": "#000",
+         }),
+    # Windows 95. The gradient title bar, left-aligned. A real town, and the
+    # only sensible name for the release that introduced the Start button.
+    Skin("startup", "Startup", "Windows 95",
+         {
+             "--bar-a": "#000080",
+             "--bar-b": "#1084d0",
+             "--bar-line": "#808080",
+             "--bar-track": "#fff",
+             "--bevel": "inset -1px -1px 0 #000,inset 1px 1px 0 #fff, inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf",  # noqa: E501
+             "--bevel-in": "inset 1px 1px 0 #000,inset -1px -1px 0 #fff, inset 2px 2px 0 #808080,inset -2px -2px 0 #dfdfdf",  # noqa: E501
+             "--btn-a": "#c0c0c0",
+             "--btn-b": "#c0c0c0",
+             "--btn-ink": "#000",
+             "--btn-line": "#000",
+             "--btn-radius": "0",
+             "--chrome-a": "#c0c0c0",
+             "--chrome-b": "#c0c0c0",
+             "--chrome-ink": "#000",
+             "--chrome-line": "#808080",
+             "--desk": "#008080",
+             "--field-radius": "0",
+             "--font": "\"MS Sans Serif\",Tahoma,Verdana,\"Liberation Sans\",\"DejaVu Sans\",sans-serif",  # noqa: E501
+             "--gear-radius": "0",
+             "--grain": "none",
+             "--head-a": "#c0c0c0",
+             "--head-b": "#c0c0c0",
+             "--head-div": "#dfdfdf",
+             "--head-ink": "#000",
+             "--head-line": "#808080",
+             "--lcd-a": "#c0c0c0",
+             "--lcd-b": "#c0c0c0",
+             "--lcd-dim": "#404040",
+             "--lcd-ink": "#000",
+             "--lcd-line": "#808080",
+             "--lcd-radius": "0",
+             "--lights": "none",
+             "--pane": "#fff",
+             "--pane-inset": "inset 1px 1px 0 #808080,inset -1px -1px 0 #fff",
+             "--radius": "0",
+             "--rowsel": "#000080",
+             "--scroll-a": "#c0c0c0",
+             "--scroll-b": "#c0c0c0",
+             "--scroll-line": "#808080",
+             "--scroll-track": "#dfdfdf",
+             "--sel": "#000080",
+             "--sel-ink": "#fff",
+             "--shadow": "none",
+             "--sorted-a": "#dfdfdf",
+             "--sorted-b": "#c0c0c0",
+             "--src-bg": "#fff",
+             "--src-head-a": "#c0c0c0",
+             "--src-head-b": "#c0c0c0",
+             "--src-head-ink": "#000",
+             "--src-line": "#808080",
+             "--stripe": "#fff",
+             "--title-bg": "linear-gradient(90deg,#000080,#1084d0)",
+             "--title-h": "20px",
+             "--title-ink": "#fff",
+             "--title-just": "flex-start",
+             "--title-pad": "0 6px",
+             "--title-weight": "700",
+             "--vlc-a": "#c0c0c0",
+             "--vlc-b": "#c0c0c0",
+             "--vlc-ink": "#000",
+             "--vlc-line": "#000",
+             "--vlc-shadow": "inset -1px -1px 0 #000,inset 1px 1px 0 #fff, inset -2px -2px 0 #808080,inset 2px 2px 0 #dfdfdf",  # noqa: E501
+             "--win-line": "#000",
+         }),
+    # Windows XP Luna. Deep lake blue and the beige workspace that came with
+    # it. Rounded again, but only at the top.
+    Skin("chelan", "Chelan", "Windows XP",
+         {
+             "--bar-a": "#4f9d3a",
+             "--bar-b": "#2f7a20",
+             "--bar-line": "#aca899",
+             "--bar-track": "#e6e3d4",
+             "--bevel": "inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.25)",
+             "--bevel-in": "inset 0 2px 4px rgba(0,0,0,.28)",
+             "--btn-a": "#fdfdfb",
+             "--btn-b": "#e8e5d6",
+             "--btn-ink": "#22314a",
+             "--btn-line": "#a9a596",
+             "--btn-radius": "4px",
+             "--chrome-a": "#f6f4ec",
+             "--chrome-b": "#ece9d8",
+             "--chrome-ink": "#22314a",
+             "--chrome-line": "#aca899",
+             "--desk": "linear-gradient(#4a7ec4,#7aa8dc) fixed",
+             "--field-radius": "3px",
+             "--font": "Tahoma,\"Segoe UI\",Verdana,\"Liberation Sans\",\"DejaVu Sans\",sans-serif",
+             "--gear-radius": "3px",
+             "--grain": "none",
+             "--head-a": "#fbfaf6",
+             "--head-b": "#e8e5d6",
+             "--head-div": "#d4d0c0",
+             "--head-ink": "#22314a",
+             "--head-line": "#aca899",
+             "--lcd-a": "#fbfaf6",
+             "--lcd-b": "#ece9d8",
+             "--lcd-dim": "#5a6478",
+             "--lcd-ink": "#1b2740",
+             "--lcd-line": "#aca899",
+             "--lcd-radius": "3px",
+             "--lights": "none",
+             "--pane": "#fff",
+             "--pane-inset": "inset 0 1px 3px rgba(0,0,0,.22)",
+             "--radius": "8px 8px 0 0",
+             "--rowsel": "#c1d7f5",
+             "--scroll-a": "#dfeaf8",
+             "--scroll-b": "#9dbbe4",
+             "--scroll-line": "#7f9ec9",
+             "--scroll-track": "#f1efe4",
+             "--sel": "#316ac5",
+             "--sel-ink": "#fff",
+             "--shadow": "0 10px 30px rgba(0,0,0,.4)",
+             "--sorted-a": "#dbe6f8",
+             "--sorted-b": "#bed3f2",
+             "--src-bg": "#eef3fb",
+             "--src-head-a": "#f6f4ec",
+             "--src-head-b": "#e4e0cf",
+             "--src-head-ink": "#3b4a63",
+             "--src-line": "#a7b6cc",
+             "--stripe": "#f3f6fc",
+             "--title-bg": "linear-gradient(#0a55d4,#3a86e8 8%,#2c76dc 40%,#1a5fd0)",
+             "--title-h": "26px",
+             "--title-ink": "#fff",
+             "--title-just": "flex-start",
+             "--title-pad": "0 10px",
+             "--title-weight": "700",
+             "--vlc-a": "#5b9bd5",
+             "--vlc-b": "#2a6db5",
+             "--vlc-ink": "#fff",
+             "--vlc-line": "#1c4f8a",
+             "--vlc-shadow": "inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.3)",
+             "--win-line": "#0a3f9c",
+         }),
+    # The Windows 3.1 Hot Dog Stand scheme nobody chose on purpose. Structure
+    # taken from a real Program Manager screenshot; the colour goes further
+    # than the 16-colour palette could, which is the trade.
+    Skin("boring", "Boring", "Hot Dog Stand",
+         {
+             "--bar-a": "#ffee00",
+             "--bar-b": "#ffa000",
+             "--bar-line": "#4d0000",
+             "--bar-track": "#8b0000",
+             "--bevel": "inset -1px -1px 0 #800000,inset 1px 1px 0 #ffff99, inset -2px -2px 0 #b30000,inset 2px 2px 0 #ffee55",  # noqa: E501
+             "--bevel-in": "inset 1px 1px 0 #800000,inset -1px -1px 0 #ffff99",
+             "--btn-a": "#ffee44",
+             "--btn-b": "#ffab00",
+             "--btn-ink": "#8b0000",
+             "--btn-line": "#800000",
+             "--btn-radius": "0",
+             "--chrome-a": "#ff2a12",
+             "--chrome-b": "#d40000",
+             "--chrome-ink": "#ffee00",
+             "--chrome-line": "#800000",
+             "--desk": "linear-gradient(#ff2a00,#cc0000)",
+             "--field-radius": "0",
+             "--font": "\"MS Sans Serif\",Tahoma,Verdana,\"Liberation Sans\",\"DejaVu Sans\",sans-serif",  # noqa: E501
+             "--gear-radius": "0",
+             "--grain": "none",
+             "--head-a": "#ff3a18",
+             "--head-b": "#c40000",
+             "--head-div": "#ff7a55",
+             "--head-ink": "#ffee00",
+             "--head-line": "#800000",
+             "--ink": "#1a0000",
+             "--lcd-a": "#ffff44",
+             "--lcd-b": "#ffcc00",
+             "--lcd-dim": "#b32400",
+             "--lcd-ink": "#8b0000",
+             "--lcd-line": "#800000",
+             "--lcd-radius": "0",
+             "--lights": "none",
+             "--pane": "linear-gradient(#ffff33,#ffe97a)",
+             "--pane-inset": "inset 0 1px 3px rgba(128,0,0,.55)",
+             "--radius": "0",
+             "--rowsel": "#c00000",
+             "--scroll-a": "#ff3a18",
+             "--scroll-b": "#aa0000",
+             "--scroll-line": "#800000",
+             "--scroll-track": "#ffd700",
+             "--sel": "#c00000",
+             "--sel-ink": "#ffff00",
+             "--shadow": "0 6px 20px rgba(90,0,0,.55)",
+             "--sorted-a": "#ffcc00",
+             "--sorted-b": "#ff8c00",
+             "--src-bg": "linear-gradient(#ffd700,#ffb300)",
+             "--src-head-a": "#ff4422",
+             "--src-head-b": "#c40000",
+             "--src-head-ink": "#ffff00",
+             "--src-line": "#800000",
+             "--stripe": "#fff08a",
+             "--title-bg": "linear-gradient(#ff4422,#e00000 45%,#c00000)",
+             "--title-h": "20px",
+             "--title-ink": "#ffff00",
+             "--title-just": "center",
+             "--title-weight": "700",
+             "--vlc-a": "#ff5522",
+             "--vlc-b": "#c00000",
+             "--vlc-ink": "#ffff00",
+             "--vlc-line": "#5a0000",
+             "--vlc-shadow": "inset 0 1px 0 #ffbb88,0 1px 3px rgba(90,0,0,.6)",
+             "--win-line": "#5a0000",
+         }),
+    # Not an operating system at all, but a 2006 band profile: MySpace blue
+    # buried under whatever the layout generator produced.
+    Skin("azalea", "Azalea", "MySpace 2006",
+         {
+             "--bar-a": "#00ff66",
+             "--bar-b": "#ffee00",
+             "--bar-line": "#ff00cc",
+             "--bar-track": "#12001f",
+             "--bevel": "inset 0 0 0 1px #00e5ff,0 0 8px #ff00cc",
+             "--bevel-in": "inset 0 0 10px #ff00cc",
+             "--btn-a": "#ff00cc",
+             "--btn-b": "#7a00ff",
+             "--btn-ink": "#ffee00",
+             "--btn-line": "#00e5ff",
+             "--btn-radius": "0",
+             "--chrome-a": "#1a0033",
+             "--chrome-b": "#4b0082",
+             "--chrome-ink": "#00ff66",
+             "--chrome-line": "#ff00cc",
+             "--desk": "linear-gradient(135deg,#ff00cc 0%,#7a00ff 25%,#00e5ff 50%,#7a00ff 75%,#ff00cc 100%) fixed",  # noqa: E501
+             "--field-radius": "0",
+             "--font": "\"Comic Sans MS\",\"Chalkboard SE\",\"Comic Neue\",cursive,sans-serif",
+             "--gear-radius": "0",
+             "--grain": "none",
+             "--head-a": "#ffee00",
+             "--head-b": "#ff8800",
+             "--head-div": "#ff00cc",
+             "--head-ink": "#4b0082",
+             "--head-line": "#ff00cc",
+             "--ink": "#ffffff",
+             "--lcd-a": "#2a003f",
+             "--lcd-b": "#00223f",
+             "--lcd-dim": "#00ff66",
+             "--lcd-ink": "#ffee00",
+             "--lcd-line": "#00e5ff",
+             "--lcd-radius": "0",
+             "--lights": "none",
+             "--pane": "linear-gradient(180deg,#12001f,#2a003f 40%,#12001f)",
+             "--pane-inset": "inset 0 0 14px rgba(255,0,204,.75)",
+             "--radius": "0",
+             "--rowsel": "#00ff66",
+             "--scroll-a": "#ff00cc",
+             "--scroll-b": "#00e5ff",
+             "--scroll-line": "#ffee00",
+             "--scroll-track": "#1a0033",
+             "--sel": "#00ff66",
+             "--sel-ink": "#1a0033",
+             "--shadow": "0 0 40px #ff00cc,0 0 90px #7a00ff",
+             "--sorted-a": "#00e5ff",
+             "--sorted-b": "#00ff66",
+             "--src-bg": "linear-gradient(180deg,#4b0082,#ff00cc 50%,#4b0082)",
+             "--src-head-a": "#ffee00",
+             "--src-head-b": "#ff8800",
+             "--src-head-ink": "#4b0082",
+             "--src-line": "#00e5ff",
+             "--stripe": "rgba(255,0,204,.22)",
+             "--title-bg": "linear-gradient(90deg,#ff00cc,#ffee00 20%,#00ff66 40%,#00e5ff 60%,#7a00ff 80%,#ff00cc)",  # noqa: E501
+             "--title-h": "24px",
+             "--title-ink": "#000",
+             "--title-just": "center",
+             "--title-weight": "700",
+             "--vlc-a": "#00ff66",
+             "--vlc-b": "#00a3ff",
+             "--vlc-ink": "#1a0033",
+             "--vlc-line": "#ff00cc",
+             "--vlc-shadow": "0 0 10px #00ff66",
+             "--win-line": "#00e5ff",
+         }),
+]
 
-/* Boring, OR -- Hot Dog Stand. The Windows 3.1 scheme nobody chose on purpose:
-   red, yellow, black, and no mercy. The town is real and the name is the joke. */
-[data-skin="boring"]{
-  --font:"MS Sans Serif",Tahoma,Verdana,"Liberation Sans","DejaVu Sans",sans-serif;
-  --ink:#1a0000;
-  --desk:linear-gradient(#ff2a00,#cc0000); --grain:none;
-  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0; --gear-radius:0;
-  /* the 16-colour palette had no bevels to speak of, so these are yellow-on-
-     dark-red rather than the usual white-on-grey */
-  --bevel:inset -1px -1px 0 #800000,inset 1px 1px 0 #ffff99,
-          inset -2px -2px 0 #b30000,inset 2px 2px 0 #ffee55;
-  --bevel-in:inset 1px 1px 0 #800000,inset -1px -1px 0 #ffff99;
-  --pane-inset:inset 0 1px 3px rgba(128,0,0,.55);
-  --shadow:0 6px 20px rgba(90,0,0,.55); --lights:none;
-  --title-bg:linear-gradient(#ff4422,#e00000 45%,#c00000); --title-ink:#ffff00;
-  --title-just:center; --title-h:20px; --title-weight:700;
-  --chrome-a:#ff2a12; --chrome-b:#d40000; --chrome-line:#800000; --chrome-ink:#ffee00;
-  --win-line:#5a0000;
-  --lcd-a:#ffff44; --lcd-b:#ffcc00; --lcd-line:#800000;
-  --lcd-ink:#8b0000; --lcd-dim:#b32400;
-  --bar-track:#8b0000; --bar-line:#4d0000; --bar-a:#ffee00; --bar-b:#ffa000;
-  --btn-a:#ffee44; --btn-b:#ffab00; --btn-line:#800000; --btn-ink:#8b0000;
-  --vlc-a:#ff5522; --vlc-b:#c00000; --vlc-line:#5a0000; --vlc-ink:#ffff00;
-  --vlc-shadow:inset 0 1px 0 #ffbb88,0 1px 3px rgba(90,0,0,.6);
-  --pane:linear-gradient(#ffff33,#ffe97a);
-  --src-bg:linear-gradient(#ffd700,#ffb300); --src-line:#800000;
-  --src-head-a:#ff4422; --src-head-b:#c40000; --src-head-ink:#ffff00;
-  --sel:#c00000; --sel-ink:#ffff00;
-  --head-a:#ff3a18; --head-b:#c40000; --head-line:#800000;
-  --head-ink:#ffee00; --head-div:#ff7a55;
-  --sorted-a:#ffcc00; --sorted-b:#ff8c00;
-  --stripe:#fff08a; --rowsel:#c00000;
-  --scroll-track:#ffd700; --scroll-a:#ff3a18; --scroll-b:#aa0000; --scroll-line:#800000;
-}
 
-/* Azalea, OR -- not an operating system at all, but a 2006 band profile: the
-   MySpace blue chrome buried under whatever gradient the layout generator felt
-   like. The tag cloud on a layout site still reads music, autoplay, gif, emo,
-   black, pink, scene, goth -- so: hot pink, purple, cyan, on black, in Comic
-   Sans. Every token that accepts a gradient gets one.                        */
-[data-skin="azalea"]{
-  --font:"Comic Sans MS","Chalkboard SE","Comic Neue",cursive,sans-serif;
-  --ink:#ffffff;
-  --desk:linear-gradient(135deg,#ff00cc 0%,#7a00ff 25%,#00e5ff 50%,#7a00ff 75%,#ff00cc 100%) fixed;
-  --grain:none;
-  --radius:0; --lcd-radius:0; --btn-radius:0; --field-radius:0; --gear-radius:0;
-  --bevel:inset 0 0 0 1px #00e5ff,0 0 8px #ff00cc;
-  --bevel-in:inset 0 0 10px #ff00cc;
-  --pane-inset:inset 0 0 14px rgba(255,0,204,.75);
-  --shadow:0 0 40px #ff00cc,0 0 90px #7a00ff;
-  --lights:none;
-  --title-bg:linear-gradient(90deg,#ff00cc,#ffee00 20%,#00ff66 40%,#00e5ff 60%,#7a00ff 80%,#ff00cc);
-  --title-ink:#000; --title-just:center; --title-h:24px; --title-weight:700;
-  --chrome-a:#1a0033; --chrome-b:#4b0082; --chrome-line:#ff00cc; --chrome-ink:#00ff66;
-  --win-line:#00e5ff;
-  --lcd-a:#2a003f; --lcd-b:#00223f; --lcd-line:#00e5ff;
-  --lcd-ink:#ffee00; --lcd-dim:#00ff66;
-  --bar-track:#12001f; --bar-line:#ff00cc;
-  --bar-a:#00ff66; --bar-b:#ffee00;
-  --btn-a:#ff00cc; --btn-b:#7a00ff; --btn-line:#00e5ff; --btn-ink:#ffee00;
-  --vlc-a:#00ff66; --vlc-b:#00a3ff; --vlc-line:#ff00cc; --vlc-ink:#1a0033;
-  --vlc-shadow:0 0 10px #00ff66;
-  --pane:linear-gradient(180deg,#12001f,#2a003f 40%,#12001f);
-  --src-bg:linear-gradient(180deg,#4b0082,#ff00cc 50%,#4b0082);
-  --src-line:#00e5ff;
-  --src-head-a:#ffee00; --src-head-b:#ff8800; --src-head-ink:#4b0082;
-  --sel:#00ff66; --sel-ink:#1a0033;
-  --head-a:#ffee00; --head-b:#ff8800; --head-line:#ff00cc;
-  --head-ink:#4b0082; --head-div:#ff00cc;
-  --sorted-a:#00e5ff; --sorted-b:#00ff66;
-  --stripe:rgba(255,0,204,.22); --rowsel:#00ff66;
-  --scroll-track:#1a0033; --scroll-a:#ff00cc; --scroll-b:#00e5ff; --scroll-line:#ffee00;
-}
+# One button, three states, in iTunes' order.
+REPEAT_CYCLE = {"off": "all", "all": "one", "one": "off"}
 
+
+def render_skins():
+    """BASE_TOKENS becomes :root; each skin with overrides becomes a block."""
+    out = [":root{" + "".join(f"{k}:{v};" for k, v in BASE_TOKENS.items()) + "}"]
+    for skin in SKINS:
+        if not skin.tokens:
+            continue
+        decls = "".join(f"{k}:{v};" for k, v in skin.tokens.items())
+        out.append(f'[data-skin="{skin.id}"]{{{decls}}}')
+    return "\n".join(out)
+
+
+LAYOUT_CSS = r"""
 /* ---- Layout ---------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -546,6 +824,8 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E"
            "%3Cpath fill='%233a6ea5' d='M5 1v9.2A2.6 2.6 0 1 0 6.6 12.6V4.6H12V1z'/%3E%3C/svg%3E")
 
+CSS = render_skins() + "\n" + LAYOUT_CSS
+
 NOTE_SVG = ("<svg width='9' height='11' viewBox='0 0 9 11' fill='%233a6ea5'>"
             "<path d='M3 0v7.1A2 2 0 1 0 4 9V3h4V0z'/></svg>")
 
@@ -557,16 +837,6 @@ let nowIdx=-1,queue=[],qpos=-1,queueKey="";
 let shuffleOn=false,repeatMode="off";      // off | all | one
 const MODEKEY="playlists.modes";
 const KEY="playlists.columns", SKINKEY="playlists.skin";
-// Only eras that kept this layout. iTunes 11 hid the sidebar and 12 moved to a
-// tab bar, so they are deliberately absent rather than faked.
-const SKINS=[["greenwood","Greenwood","iTunes 1-4"],
-             ["tofino","Tofino","iTunes 5-6"],
-             ["kaslo","Kaslo","iTunes 7-10"],
-             ["concrete","Concrete","Windows 3.1"],
-             ["startup","Startup","Windows 95"],
-             ["chelan","Chelan","Windows XP"],
-             ["boring","Boring","Hot Dog Stand"],
-             ["azalea","Azalea","MySpace 2006"]];
 
 const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const songs=n=>`${n} ${n===1?"song":"songs"}`;
@@ -837,7 +1107,7 @@ function boot(){
     saveModes(); paintModes(); draw();
   };
   $("#repeat").onclick=()=>{
-    repeatMode={off:"all",all:"one",one:"off"}[repeatMode];
+    repeatMode=REPEAT[repeatMode];
     saveModes(); paintModes();
   };
 
@@ -906,6 +1176,8 @@ fetch("data.json").then(r=>r.json()).then(d=>{DATA=d;boot();});
 
 
 def write_page(out_dir, n_playlists, n_refs):
+    skins_json = json.dumps([[s.id, s.label, s.era] for s in SKINS])
+    repeat_json = json.dumps(REPEAT_CYCLE)
     doc = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -986,7 +1258,11 @@ def write_page(out_dir, n_playlists, n_refs):
 </div>
 <div class="panel" id="vo"></div>
 <div class="panel" id="prefs"></div>
-<script>const NOTE="{NOTE_SVG}";</script>
+<script>
+const NOTE="{NOTE_SVG}";
+const SKINS={skins_json};
+const REPEAT={repeat_json};
+</script>
 <script>{JS}</script>
 </body></html>"""
     path = os.path.join(out_dir, "index.html")

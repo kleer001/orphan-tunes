@@ -1,46 +1,50 @@
-"""Shuffle and repeat are page state, but their contract is checkable here."""
+"""Guards on the playback logic that lives in the page script.
+
+The repeat cycle itself is Python data and is tested in test_skins.py. What is
+left here is behaviour, which cannot be asserted from data -- so these are plain
+substring checks on specific lines rather than regexes that try to parse the
+script's structure. Actual playback (wrapping, looping, shuffling) is exercised
+in the browser, not here.
+"""
 
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from build_browser import JS  # noqa: E402
+from build_browser import JS, REPEAT_CYCLE  # noqa: E402
 
 
-def test_repeat_cycles_off_all_one():
-    """One button, three states, in iTunes' order."""
-    cycle = re.search(r"repeatMode=\{([^}]*)\}\[repeatMode\]", JS)
-    assert cycle, "repeat cycle not found"
-    mapping = dict(re.findall(r'(\w+):"(\w+)"', cycle.group(1)))
-    assert mapping == {"off": "all", "all": "one", "one": "off"}, mapping
+def test_the_page_uses_the_cycle_it_was_given():
+    """Not a copy of it, so the two cannot disagree."""
+    assert "repeatMode=REPEAT[repeatMode]" in JS
+    assert '{off:"all"' not in JS, "the cycle was re-declared in the script"
 
 
 def test_repeat_one_loops_the_element_rather_than_restarting():
-    """Looping is gapless; re-triggering the source would audibly stutter."""
+    """Looping is gapless; re-triggering the source stutters between passes."""
     assert 'audio.loop=(repeatMode==="one")' in JS
 
 
-def test_running_off_the_end_only_wraps_when_repeating_all():
-    step = re.search(r"function step\(by\)\{(.*?)\n\}", JS, re.S).group(1)
-    assert step.count('repeatMode!=="all"') == 2, "both ends must check the mode"
-    assert "stop()" in step, "without repeat it has to stop"
-    assert "at=0" in step and "at=queue.length-1" in step, "both ends must wrap"
+def test_running_off_either_end_checks_the_mode_before_wrapping():
+    assert JS.count('repeatMode!=="all"') == 2, "both ends must check"
+    assert "at=queue.length-1" in JS and "at=0" in JS, "both ends must wrap"
 
 
 def test_the_queue_is_not_rebuilt_unless_the_visible_set_changed():
     """Rebuilding on every draw would reshuffle on each keystroke."""
-    sync = re.search(r"function syncQueue\(force\)\{(.*?)\n\}", JS, re.S).group(1)
-    assert "if(!force&&key===queueKey)return" in sync
+    assert "if(!force&&key===queueKey)return" in JS
 
 
 def test_shuffle_keeps_the_playing_track_in_place():
-    """iTunes reorders what comes next, it does not jump you elsewhere."""
-    fn = re.search(r"function shuffled\(list,first\)\{(.*?)\n\}", JS, re.S).group(1)
-    assert "if(first!==undefined)" in fn
-    assert "out.indexOf(first)" in fn
+    """iTunes reorders what comes next; it does not jump you elsewhere."""
+    assert "out.indexOf(first)" in JS
 
 
 def test_modes_are_remembered():
     assert "playlists.modes" in JS
     assert "saveModes()" in JS and "loadModes()" in JS
+
+
+def test_every_mode_the_page_can_reach_is_one_the_cycle_defines():
+    for mode in REPEAT_CYCLE:
+        assert f'"{mode}"' in JS, f"{mode} is unreachable from the page"

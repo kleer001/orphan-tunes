@@ -66,16 +66,19 @@ every click leaves a zombie.
 
 ## Skins
 
-`:root` in `CSS` holds every colour token and *is* the Greenwood skin, so the
-default needs no attribute. Other eras are `[data-skin="..."]` blocks that
-override tokens only — never a real property. `tests/test_skins.py` enforces
-that, along with the rule that no skin may claim an era past iTunes 10: 11 hid
-the sidebar and 12 moved to a tab bar, so those are different layouts rather
-than repaints.
+`BASE_TOKENS` holds every colour, shape and type value; `SKINS` is a list of
+`Skin(id, label, era, tokens)`, the first of which is the base and carries no
+overrides. `render_skins()` turns those into `:root` plus one `[data-skin]`
+block each, and the page receives the list as JSON — so the menu and the
+stylesheet cannot disagree, and a skin cannot name a token that does not exist.
 
-Adding a skin means adding a token block and one entry to `SKINS` in the page
-script. The test suite checks the two stay in step and that every overridden
-token exists on `:root`.
+Adding one means adding a `Skin(...)` entry. Nothing else.
+
+Tests read `BASE_TOKENS`, `SKINS` and `REPEAT_CYCLE` directly. Do not go back to
+parsing the generated CSS or page script: a regex looking for three-string
+arrays once matched an unrelated `["off","all","one"]` and reported it as a
+skin, and a declaration splitter that ignored comments failed a skin for having
+one. Both were the test being wrong about working code.
 
 ## Column data
 
