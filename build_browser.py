@@ -385,7 +385,7 @@ body{background:var(--desk);font:11px/1.35 var(--font);
 
 .metal{background-image:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b))}
 
-.win{width:100%;max-width:1180px;height:100%;max-height:820px;display:flex;flex-direction:column;
+.win{width:100%;height:100%;min-width:0;min-height:0;display:flex;flex-direction:column;
      border:1px solid var(--win-line);border-radius:var(--radius);overflow:hidden;
      box-shadow:var(--shadow)}
 
@@ -432,8 +432,9 @@ body{background:var(--desk);font:11px/1.35 var(--font);
 .playbtn svg{flex:none;fill:var(--vlc-ink)}
 
 .top{flex:none;display:flex;align-items:center;gap:14px;padding:9px 12px;
+     flex-wrap:wrap;
      border-bottom:1px solid var(--chrome-line)}
-.lcd{flex:1;height:66px;border-radius:var(--lcd-radius);
+.lcd{flex:1 1 220px;min-width:0;height:66px;border-radius:var(--lcd-radius);
      background:linear-gradient(var(--lcd-a),var(--lcd-b));
      border:1px solid var(--lcd-line);box-shadow:var(--pane-inset);
      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
@@ -442,7 +443,7 @@ body{background:var(--desk);font:11px/1.35 var(--font);
          overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #lcdSub{font-size:10px;color:var(--lcd-dim);font-variant-numeric:tabular-nums}
 .searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
-#search{width:190px;height:20px;border-radius:var(--field-radius);
+#search{width:min(190px,38vw);height:20px;border-radius:var(--field-radius);
         border:1px solid var(--lcd-line);color:var(--ink);padding:0 22px 0 22px;
         font:11px "Lucida Grande",sans-serif;background:#fff url("data:image/svg+xml;charset=utf8,\
 %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23888' \
@@ -454,7 +455,8 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 
 .body{flex:1;display:flex;min-height:0;border-top:1px solid #fff}
 
-.source{width:172px;flex:none;background:var(--src-bg);border-right:1px solid var(--src-line);
+.source{width:clamp(120px,16vw,220px);flex:none;background:var(--src-bg);
+        border-right:1px solid var(--src-line);
         display:flex;flex-direction:column;min-height:0}
 .srchead{flex:none;height:18px;display:flex;align-items:center;justify-content:center;
          font-size:10px;color:var(--src-head-ink);border-bottom:1px solid var(--head-div);

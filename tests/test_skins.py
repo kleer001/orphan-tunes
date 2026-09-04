@@ -70,3 +70,18 @@ def test_skin_ids_and_labels_are_unique():
     labels = [label for _, label, _ in OFFERED]
     assert len(set(ids)) == len(ids), ids
     assert len(set(labels)) == len(labels), labels
+
+
+def test_the_window_is_not_capped_to_a_fixed_size():
+    """It was letterboxed at 1180x820, wasting most of a large display."""
+    win = re.search(r'\.win\{([^}]*)\}', CSS).group(1)
+    assert "max-width" not in win, win
+    assert "max-height" not in win, win
+    assert "width:100%" in win and "height:100%" in win, win
+
+
+def test_the_track_pane_can_shrink():
+    """Without min-width:0 a flex child refuses to go below its content width,
+    which pushes the pane past the window edge instead of scrolling inside."""
+    tracks = re.search(r'\.tracks\{([^}]*)\}', CSS).group(1)
+    assert "min-width:0" in tracks, tracks

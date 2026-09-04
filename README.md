@@ -51,6 +51,10 @@ python serve.py <browser_dir> 8100
 Then open the printed `http://127.0.0.1:<port>/`. The port is probed upward from
 the one you asked for, so a leftover process doesn't stop the launch.
 
+The window fills the browser, at any size. Wide, the track table gets the room;
+narrow, the source list tightens and the table scrolls sideways inside its own
+pane rather than pushing the page around.
+
 ### In the page
 
 - **Source list** — every playlist, alphabetical; click to switch.
