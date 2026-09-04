@@ -18,3 +18,15 @@ htmlcov/
 
 # Library export and anything derived from it: personal data, never committed.
 data/
+
+# Everything the tools generate. These list real paths from the music library,
+# so they must never be committed even when a run leaves them in the repo root:
+# demangle writes its plan and journal to the working directory, and the plan
+# holds one line per file in the library.
+demangle-plan.tsv
+demangle-journal-*.jsonl
+paths.json
+data.json
+index.html
+_now_playing.m3u8
+*.m3u8
