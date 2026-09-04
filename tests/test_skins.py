@@ -8,7 +8,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from build_browser import CSS, JS  # noqa: E402
 
 BASE = "greenwood"          # lives on :root, so it needs no attribute
-OFFERED = re.findall(r'\["(\w+)","([^"]+)","([^"]+)"\]', JS)
+def _offered():
+    """Parse the SKINS declaration itself. Matching any three-string array
+    picks up unrelated literals like ["off","all","one"]."""
+    block = re.search(r"const SKINS=\[(.*?)\];", JS, re.S)
+    assert block, "SKINS declaration not found"
+    return re.findall(r'\["(\w+)","([^"]+)","([^"]+)"\]', block.group(1))
+
+
+OFFERED = _offered()
 
 
 def strip_comments(css):

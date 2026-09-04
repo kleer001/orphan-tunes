@@ -524,13 +524,18 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .status{flex:none;height:22px;display:flex;align-items:center;justify-content:center;
         border-top:1px solid #fff;font-size:10px;color:var(--chrome-ink);
         text-shadow:0 1px 0 rgba(255,255,255,.5);position:relative}
-.gear{position:absolute;right:6px;top:50%;transform:translateY(-50%);
-      width:17px;height:17px;border-radius:var(--gear-radius);
+.sbtn{width:17px;height:17px;border-radius:var(--gear-radius);
       border:1px solid var(--btn-line);
       background:linear-gradient(var(--btn-a),var(--btn-b));cursor:pointer;
-      display:flex;align-items:center;justify-content:center;padding:0}
-.gear:hover{filter:brightness(1.06)}
-.gear svg{fill:var(--btn-ink);pointer-events:none}
+      display:flex;align-items:center;justify-content:center;padding:0;position:relative}
+.sbtn:hover{filter:brightness(1.06)}
+.sbtn svg{fill:var(--btn-ink);pointer-events:none}
+.sbtn.on{background:linear-gradient(var(--sel),var(--sel))}
+.sbtn.on svg{fill:var(--sel-ink)}
+.sbtn b{position:absolute;right:1px;bottom:0;font-size:7px;line-height:1;
+        font-weight:700;color:var(--sel-ink);pointer-events:none}
+.modes{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;gap:4px}
+.gear{position:absolute;right:6px;top:50%;transform:translateY(-50%)}
 
 ::-webkit-scrollbar{width:13px}
 ::-webkit-scrollbar-track{background:var(--scroll-track);border-left:1px solid var(--head-div)}
@@ -548,7 +553,9 @@ JS = r"""
 const $=s=>document.querySelector(s);
 let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
 // what is playing, as a pool index, plus the queue it came from
-let nowIdx=-1,queue=[],qpos=-1;
+let nowIdx=-1,queue=[],qpos=-1,queueKey="";
+let shuffleOn=false,repeatMode="off";      // off | all | one
+const MODEKEY="playlists.modes";
 const KEY="playlists.columns", SKINKEY="playlists.skin";
 // Only eras that kept this layout. iTunes 11 hid the sidebar and 12 moved to a
 // tab bar, so they are deliberately absent rather than faked.
@@ -623,6 +630,7 @@ function colClass(i,nth){
 
 function draw(){
   rows=current();
+  syncQueue();
   const total=DATA.playlists[cur].ids.length;
   $("#thead").innerHTML=vis.map((f,n)=>
     `<div class="${colClass(f,n)}${f===sortCol?" sorted"+(asc?" asc":""):""}" `+
@@ -666,6 +674,30 @@ function loadCols(){
   return FIELDS.map((f,i)=>f[2]?i:-1).filter(i=>i>=0);
 }
 
+function loadModes(){
+  try{
+    const m=JSON.parse(localStorage.getItem(MODEKEY));
+    if(m&&typeof m==="object"){
+      shuffleOn=!!m.shuffle;
+      if(["off","all","one"].includes(m.repeat))repeatMode=m.repeat;
+    }
+  }catch(e){}
+}
+
+function saveModes(){
+  try{localStorage.setItem(MODEKEY,JSON.stringify(
+    {shuffle:shuffleOn,repeat:repeatMode}));}catch(e){}
+}
+
+function paintModes(){
+  $("#shuffle").classList.toggle("on",shuffleOn);
+  $("#shuffle").title=shuffleOn?"Shuffle on":"Shuffle";
+  $("#repeat").classList.toggle("on",repeatMode!=="off");
+  $("#repeatBadge").textContent=repeatMode==="one"?"1":"";
+  $("#repeat").title="Repeat "+repeatMode;
+  audio.loop=(repeatMode==="one");
+}
+
 function skinName(){
   try{
     const v=localStorage.getItem(SKINKEY);
@@ -702,12 +734,38 @@ function label(t){
   return artist?`${t[0]} — ${artist}`:t[0];
 }
 
+function shuffled(list,first){
+  const out=list.slice();
+  for(let i=out.length-1;i>0;i--){            // Fisher-Yates
+    const j=Math.floor(Math.random()*(i+1));
+    [out[i],out[j]]=[out[j],out[i]];
+  }
+  // whatever is playing stays put; only what comes after is reordered
+  if(first!==undefined){
+    const at=out.indexOf(first);
+    if(at>0)[out[0],out[at]]=[out[at],out[0]];
+  }
+  return out;
+}
+
+/* The queue is the visible rows. Rebuild it only when that *set* changes --
+   selecting a row or retyping the same search must not reshuffle underfoot. */
+function syncQueue(force){
+  const playable=rows.filter(i=>!missing(DATA.tracks[i]));
+  const key=playable.join(",");
+  if(!force&&key===queueKey)return;
+  queueKey=key;
+  queue=shuffleOn?shuffled(playable,nowIdx>=0?nowIdx:undefined):playable;
+  qpos=queue.indexOf(nowIdx);
+}
+
 function play(poolIndex){
   const t=DATA.tracks[poolIndex];
   if(missing(t))return;
   nowIdx=poolIndex;
-  queue=rows.filter(i=>!missing(DATA.tracks[i]));
+  syncQueue(true);
   qpos=queue.indexOf(poolIndex);
+  audio.loop=(repeatMode==="one");
   audio.src="audio?i="+poolIndex;
   audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
   draw();
@@ -715,8 +773,14 @@ function play(poolIndex){
 
 function step(by){
   if(!queue.length)return;
-  const at=qpos+by;
-  if(at<0||at>=queue.length){stop();return;}
+  let at=qpos+by;
+  if(at>=queue.length){
+    if(repeatMode!=="all"){stop();return;}
+    at=0;
+  }else if(at<0){
+    if(repeatMode!=="all"){stop();return;}
+    at=queue.length-1;
+  }
   play(queue[at]);
 }
 
@@ -742,7 +806,7 @@ function paint(){
 
 function boot(){
   FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
-  applySkin(skinName()); buildPrefs();
+  applySkin(skinName()); buildPrefs(); loadModes(); paintModes();
   drawSources();buildOptions();draw();paint();
 
   $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
@@ -766,6 +830,16 @@ function boot(){
   $("#prev").onclick=()=>step(-1);
   $("#next").onclick=()=>step(1);
   $("#vol").oninput=e=>{audio.volume=+e.target.value;};
+
+  $("#shuffle").onclick=()=>{
+    shuffleOn=!shuffleOn;
+    syncQueue(true);                     // reshuffle, as iTunes did on each toggle
+    saveModes(); paintModes(); draw();
+  };
+  $("#repeat").onclick=()=>{
+    repeatMode={off:"all",all:"one",one:"off"}[repeatMode];
+    saveModes(); paintModes();
+  };
 
   $("#bar").onclick=e=>{
     if(!audio.duration)return;
@@ -887,8 +961,20 @@ def write_page(out_dir, n_playlists, n_refs):
     </div>
   </div>
   <div class="status metal">
+    <div class="modes">
+      <button class="sbtn" id="shuffle" title="Shuffle">
+        <svg width="11" height="11" viewBox="0 0 12 12"><path d="M0 2h2.2l1.6 2.1-1 1.4L1.6
+          3.6H0zM8.4 2 7 .8 7 2H5.6L0 9.3v.7h2.2L7 4.1v1.2l1.4-1.2 1.4-1.1zM8.4 6.7 7 5.5v1.2
+          L5.6 8.5 4.5 7l-.9 1.2 1.4 1.8H7v1.2l1.4-1.2 1.4-1.1z"/></svg>
+      </button>
+      <button class="sbtn" id="repeat" title="Repeat off">
+        <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.6 3.4h6V5l2.4-2.1L8.6.8v1.4
+          H1.4v3.3h1.2zM9.4 8.6h-6V7L1 9.1l2.4 2.1V9.8h7.2V6.5H9.4z"/></svg>
+        <b id="repeatBadge"></b>
+      </button>
+    </div>
     <span id="status"></span>
-    <button class="gear" id="gear" title="Preferences">
+    <button class="sbtn gear" id="gear" title="Preferences">
       <svg width="11" height="11" viewBox="0 0 16 16"><path d="M8 5.2A2.8 2.8 0 1 0 8
         10.8 2.8 2.8 0 0 0 8 5.2zm0 4.3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM14 8.9v-1.8l-1.6-.3a4.6
         4.6 0 0 0-.5-1.2l.9-1.3-1.3-1.3-1.3.9a4.6 4.6 0 0 0-1.2-.5L8.9 2H7.1l-.3 1.6a4.6 4.6 0 0
