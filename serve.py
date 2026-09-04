@@ -3,8 +3,9 @@
 
     python serve.py [directory] [port]      # either, both, or neither
 
-Both default to config.toml, so plain `python serve.py` serves the browser
-directory the generator writes to.
+The directory defaults to the one config.toml names, so plain `python serve.py`
+serves what the generator just built. The port is not configurable: it is
+decided by what is already listening.
 
 GET /audio?i=<n> streams one track, with byte-range support so the browser can
 seek. POST /play with {"name": ..., "indices": [...]} writes those tracks, in
@@ -29,11 +30,12 @@ import subprocess
 import sys
 import urllib.parse
 
-from config import BROWSER_DIR, PORT
+from config import BROWSER_DIR
 
-# How far to probe upward before giving up. Fifty is well past any plausible
-# pile-up of stale servers, and short enough to fail quickly if something is
-# holding the whole range.
+# Where to start probing, and how far to go. Neither is configuration: the port
+# actually used is decided by what is already listening, so a stored preference
+# would not control the outcome.
+FIRST_PORT = 8000
 PORT_SEARCH_SPAN = 50
 
 # Streaming granularity. Small enough that a seek abandons little work, large
@@ -208,7 +210,7 @@ def main():
     ports = [a for a in args if a.isdigit()]
     dirs = [a for a in args if not a.isdigit()]
     directory = dirs[0] if dirs else BROWSER_DIR
-    wanted = int(ports[0]) if ports else PORT
+    wanted = int(ports[0]) if ports else FIRST_PORT
 
     out = os.path.abspath(directory)
     Handler.out_dir = out

@@ -45,11 +45,13 @@ local_root    = "/mnt/archive/Music"                           # where it is now
 ```bash
 python make_playlists.py        # write one .m3u8 per playlist
 python build_browser.py         # build the browsable page
-python serve.py                 # directory and port come from config.toml
+python serve.py                 # serves the directory config.toml names
 ```
 
 `serve.py` takes an optional directory and port; a bare number is read as a
-port, so `python serve.py 9000` works without restating the directory.
+port, so `python serve.py 9000` works without restating the directory. The port
+is probed upward from wherever it starts, so a leftover server does not stop the
+launch — which is also why it is not a setting.
 
 Then open the printed `http://127.0.0.1:<port>/`. The port is probed upward from
 the one you asked for, so a leftover process doesn't stop the launch.

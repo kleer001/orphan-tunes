@@ -29,11 +29,16 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
 
 ## What belongs in config.toml
 
-Paths, because they differ per machine, and the default port, because a person
-might want a different one. Nothing else. Values like the streaming chunk size,
-the rating-to-stars divisor or the progress interval are named constants beside
-the code that uses them: they have one correct value, and putting them in a file
-would invite tuning things that should not be tuned.
+Paths. That is the whole list, and it is allowed to stay that short.
+
+Paths earn their place because they genuinely differ per machine and the tool
+cannot run without knowing them. Nothing else has qualified. The port looked
+like a candidate and is not: the server probes upward from a starting point, so
+what it ends up on is decided by whatever is already listening, and a stored
+preference would not change the outcome. Values like the streaming chunk size,
+the rating-to-stars divisor or the progress interval each have one correct
+value; naming them beside the code that uses them says more than a config entry
+would, and does not invite tuning what should not be tuned.
 
 ## Track resolution
 
