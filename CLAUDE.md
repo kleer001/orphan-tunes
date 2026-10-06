@@ -18,7 +18,7 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   hardcode one.
 - `make_playlists.py` — library XML → `.m3u8` files. Owns `locate()` (find a
   track on disk) and `safe_name()` (playlist title → filename).
-- `build_browser.py` — library XML → `index.html`, `data.json`, `paths.json`.
+- `build_browser.py` — library XML → `index.html`, `data.js`, `paths.json`.
   Imports `locate` and `safe_name` rather than reimplementing them; if track
   resolution changes, it changes in one place.
 - `serve.py` — static server plus `POST /play`.
@@ -54,6 +54,11 @@ Anything still unresolved is counted and reported. Never guess a track.
 
 ## Playback
 
+Opened from disk, the page plays each track from `files` in `data.js`: a
+percent-encoded URL relative to the page, the same relative form the `.m3u8`
+files use. Served over http, it asks `/audio?i=<n>` instead, because an http
+page cannot load a `file://` URL.
+
 `/audio?i=<n>` serves one track. Byte-range support is hand-rolled because
 `SimpleHTTPRequestHandler` has none, and without it seeking silently fails. The
 server must stay threaded: single-threaded, streaming a track blocks every other
@@ -69,8 +74,8 @@ ones. Sorting or filtering the table changes what plays next.
 ## The /play endpoint
 
 The page posts `{name, indices}` — row numbers into the track pool, never paths.
-The server maps them through `paths.json`, which the browser never receives,
-then writes `_now_playing.m3u8` and launches VLC. Indices outside the pool are
+The server maps them through its own `paths.json`, never through anything the
+page sends, then writes `_now_playing.m3u8` and launches VLC. Indices outside the pool are
 rejected. Keep it that way: any change that lets the page name a path directly
 turns a local convenience into an arbitrary-file-open.
 

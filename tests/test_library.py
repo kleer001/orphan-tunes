@@ -1,12 +1,13 @@
 """read_library() returns data now, so what it produces can be asserted."""
 
 import datetime
+import json
 import os
 
 import pytest
 
 import config
-from build_browser import FIELDS, Library, cell, read_library
+from build_browser import FIELDS, Library, cell, read_library, write_data
 
 
 def test_cell_converts_milliseconds_to_whole_seconds():
@@ -34,6 +35,31 @@ def test_refs_counts_every_playlist_entry():
     lib = Library(tracks=[], paths=[], missing=0,
                   playlists=[{"name": "a", "ids": [1, 2]}, {"name": "b", "ids": [3]}])
     assert lib.refs == 3
+
+
+def test_page_data_is_a_script_so_the_page_opens_from_disk(tmp_path):
+    """Firefox blocks fetch() between file:// pages, which left the page blank."""
+    lib = Library(tracks=[["Song"]], paths=["/m/song.mp3"], missing=0,
+                  playlists=[{"name": "a", "ids": [0]}])
+    write_data(lib, tmp_path)
+    text = (tmp_path / "data.js").read_text(encoding="utf-8")
+    assert text.startswith("const LIBRARY=") and text.endswith(";\n")
+    data = json.loads(text[len("const LIBRARY="):-2])
+    assert data["playlists"] == lib.playlists
+
+
+def test_page_gets_a_quoted_relative_url_for_each_found_track(tmp_path):
+    """Opened from disk the page plays these directly; an unquoted "#" or "%"
+    in a filename would break the URL."""
+    song = tmp_path / "music" / "51%sincere" / "Mix #1.mp3"
+    lib = Library(tracks=[["a"], ["b"]], paths=[str(song), None], missing=1,
+                  playlists=[{"name": "a", "ids": [0, 1]}])
+    out = tmp_path / "browser"
+    out.mkdir()
+    write_data(lib, out)
+    text = (out / "data.js").read_text(encoding="utf-8")
+    data = json.loads(text[len("const LIBRARY="):-2])
+    assert data["files"] == ["../music/51%25sincere/Mix%20%231.mp3", None]
 
 
 @pytest.fixture(scope="module")

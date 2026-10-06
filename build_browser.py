@@ -4,14 +4,16 @@ Build a local browser for the exported playlists, in the iTunes 4 idiom.
 
     python build_browser.py [output_dir]
 
-Emits data.json (a shared track pool plus one index list per playlist) and
-index.html. Reads only. Serve the output directory over localhost.
+Emits data.js (a shared track pool plus one index list per playlist) and
+index.html. Reads only. The page opens straight from disk; the VLC button
+needs serve.py.
 """
 
 import json
 import os
 import plistlib
 import sys
+import urllib.parse
 from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
@@ -131,10 +133,20 @@ def write_data(library, out_dir):
     fields = [[label, kind, show] for _, label, kind, show in FIELDS]
     fields.append(["Found", "found", False])   # derived, not from the library
 
-    data = {"fields": fields, "tracks": library.tracks, "playlists": library.playlists}
-    path = os.path.join(out_dir, "data.json")
+    # Opened from disk there is no /audio, so each track also gets a URL
+    # relative to the page, as the .m3u8 files do. Quoted, or a "#" or "%" in
+    # a filename would be read as a fragment or an escape.
+    files = [urllib.parse.quote(os.path.relpath(p, out_dir)) if p else None
+             for p in library.paths]
+    data = {"fields": fields, "tracks": library.tracks, "playlists": library.playlists,
+            "files": files}
+    # A script, not JSON: Firefox refuses fetch() between file:// pages, but
+    # still runs a <script src>, so the page also works opened from disk.
+    path = os.path.join(out_dir, "data.js")
     with open(path, "w", encoding="utf-8") as fh:
+        fh.write("const LIBRARY=")
         json.dump(data, fh, ensure_ascii=False, separators=(",", ":"))
+        fh.write(";\n")
 
     with open(os.path.join(out_dir, "paths.json"), "w", encoding="utf-8") as fh:
         json.dump(library.paths, fh, ensure_ascii=False, separators=(",", ":"))
@@ -1047,7 +1059,7 @@ function play(poolIndex){
   nowIdx=poolIndex;
   syncQueue(true);
   qpos=queue.indexOf(poolIndex);
-  audio.src="audio?i="+poolIndex;
+  audio.src=location.protocol==="file:"?DATA.files[poolIndex]:"audio?i="+poolIndex;
   audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
   draw();
 }
@@ -1193,7 +1205,7 @@ function boot(){
   });
 }
 
-fetch("data.json").then(r=>r.json()).then(d=>{DATA=d;boot();});
+DATA=LIBRARY;boot();
 """
 
 
@@ -1285,6 +1297,7 @@ const NOTE="{NOTE_SVG}";
 const SKINS={skins_json};
 const REPEAT={repeat_json};
 </script>
+<script src="data.js"></script>
 <script>{JS}</script>
 </body></html>"""
     path = os.path.join(out_dir, "index.html")
@@ -1302,7 +1315,7 @@ def main():
     size = write_data(library, out_dir)
     print(f"  {len(library.playlists)} playlists, {library.refs} track refs, "
           f"{len(library.tracks)} unique tracks, {library.missing} shown as missing")
-    print(f"  data.json {size / 1e6:.1f} MB")
+    print(f"  data.js {size / 1e6:.1f} MB")
     write_page(out_dir, len(library.playlists), library.refs)
 
 

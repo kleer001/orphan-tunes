@@ -16,7 +16,7 @@ GENERATED = [
     "demangle-plan.tsv",
     "demangle-journal-20260101-000000.jsonl",
     "paths.json",
-    "data.json",
+    "data.js",
     "index.html",
     "_now_playing.m3u8",
     "Some Playlist.m3u8",
