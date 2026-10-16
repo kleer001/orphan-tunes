@@ -8,7 +8,9 @@ in the browser, not here.
 """
 
 
-from build_browser import JS, REPEAT_CYCLE
+from build_browser import REPEAT_CYCLE, read_static
+
+JS = read_static("app.js")
 
 
 def test_the_page_uses_the_cycle_it_was_given():

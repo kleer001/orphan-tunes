@@ -18,7 +18,8 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   hardcode one.
 - `make_playlists.py` — library XML → `.m3u8` files. Owns `locate()` (find a
   track on disk) and `safe_name()` (playlist title → filename).
-- `build_browser.py` — library XML → `index.html`, `data.js`, `paths.json`.
+- `build_browser.py` — library XML → `index.html`, `data.js`, `paths.json`,
+  plus `style.css` (skins + `static/layout.css`) and `app.js` (from `static/`).
   Imports `locate` and `safe_name` rather than reimplementing them; if track
   resolution changes, it changes in one place.
 - `serve.py` — static server plus `POST /play`.

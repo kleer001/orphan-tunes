@@ -12,12 +12,16 @@ needs serve.py.
 import json
 import os
 import plistlib
+import shutil
 import sys
 import urllib.parse
 from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
 from make_playlists import index_by_name, locate  # the .m3u8 writer's own
+
+# The page's script and layout stylesheet, copied next to index.html at build time.
+STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 # iTunes records durations in milliseconds; the page wants whole seconds.
 MILLISECONDS = 1000
@@ -653,6 +657,11 @@ SKINS = [
 REPEAT_CYCLE = {"off": "all", "all": "one", "one": "off"}
 
 
+def read_static(name):
+    with open(os.path.join(STATIC, name), encoding="utf-8") as fh:
+        return fh.read()
+
+
 def render_skins():
     """BASE_TOKENS becomes :root; each skin with overrides becomes a block."""
     out = [":root{" + "".join(f"{k}:{v};" for k, v in BASE_TOKENS.items()) + "}"]
@@ -664,549 +673,11 @@ def render_skins():
     return "\n".join(out)
 
 
-LAYOUT_CSS = r"""
-/* ---- Layout ---------------------------------------------------------- */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--desk);font:11px/1.35 var(--font);
-     color:var(--ink);display:flex;align-items:center;justify-content:center;padding:14px;
-     -webkit-font-smoothing:antialiased}
-
-.metal{background-image:var(--grain),linear-gradient(var(--chrome-a),var(--chrome-b))}
-
-.win{width:100%;height:100%;min-width:0;min-height:0;display:flex;flex-direction:column;
-     border:1px solid var(--win-line);border-radius:var(--radius);overflow:hidden;
-     box-shadow:var(--shadow)}
-
-.title{height:var(--title-h);flex:none;display:flex;align-items:center;
-       justify-content:var(--title-just);padding:var(--title-pad);
-       background-image:var(--title-bg);
-       border-bottom:1px solid var(--chrome-line);font-weight:var(--title-weight);
-       color:var(--title-ink);font-size:12px;position:relative}
-.lights{position:absolute;left:8px;display:var(--lights);gap:6px}
-.lights i{width:11px;height:11px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.35)}
-.lights i:nth-child(1){background:radial-gradient(circle at 35% 30%,#ff9a90,#e04f43)}
-.lights i:nth-child(2){background:radial-gradient(circle at 35% 30%,#ffd479,#e0a234)}
-.lights i:nth-child(3){background:radial-gradient(circle at 35% 30%,#a8e57f,#4fa42f)}
-
-.transport{flex:none;display:flex;align-items:center;gap:7px}
-.tbtn{width:29px;height:29px;border-radius:var(--btn-radius);
-  border:1px solid var(--btn-line);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;padding:0;
-  background:linear-gradient(var(--btn-a),var(--btn-b));box-shadow:var(--bevel)}
-.tbtn.big{width:39px;height:39px}
-.tbtn:hover{filter:brightness(1.06)}
-.tbtn:active{filter:brightness(.9);box-shadow:var(--bevel-in)}
-.tbtn:disabled{opacity:.4;cursor:default}
-.tbtn svg{fill:var(--btn-ink);pointer-events:none}
-.vol{width:74px;margin-left:4px;accent-color:var(--btn-ink)}
-
-.bar{width:88%;height:7px;border-radius:4px;background:var(--bar-track);cursor:pointer;
-  border:1px solid var(--bar-line);box-shadow:inset 0 1px 2px rgba(0,0,0,.25);position:relative}
-.bar span{display:block;height:100%;border-radius:3px 0 0 3px;
-  background:linear-gradient(var(--bar-a),var(--bar-b))}
-.times{display:flex;justify-content:space-between;width:88%;font-size:9.5px;
-  color:var(--lcd-dim);font-variant-numeric:tabular-nums}
-.row.playing{font-weight:600}
-.row.playing .c-name::before{content:"\25B6";font-size:8px;margin-right:5px;color:var(--sel)}
-
-.playbtn{flex:none;display:flex;align-items:center;gap:8px;height:30px;
-  padding:0 14px 0 11px;border-radius:var(--field-radius);cursor:pointer;font-size:11px;
-  border:1px solid var(--vlc-line);color:var(--vlc-ink);font:600 12px var(--font);
-  background:linear-gradient(var(--vlc-a),var(--vlc-b));
-  text-shadow:0 -1px 0 rgba(0,0,0,.25);box-shadow:var(--vlc-shadow)}
-.playbtn:hover{filter:brightness(1.1)}
-.playbtn:active{filter:brightness(.85);box-shadow:var(--bevel-in)}
-.playbtn:disabled{opacity:.45;cursor:default}
-.playbtn svg{flex:none;fill:var(--vlc-ink)}
-
-.top{flex:none;display:flex;align-items:center;gap:14px;padding:9px 12px;
-     flex-wrap:wrap;
-     border-bottom:1px solid var(--chrome-line)}
-.lcd{flex:1 1 220px;min-width:0;height:66px;border-radius:var(--lcd-radius);
-     background:linear-gradient(var(--lcd-a),var(--lcd-b));
-     border:1px solid var(--lcd-line);box-shadow:var(--pane-inset);
-     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-     text-shadow:0 1px 0 rgba(255,255,255,.4);overflow:hidden;padding:0 12px}
-#lcdName{font-weight:600;font-size:12px;color:var(--lcd-ink);white-space:nowrap;
-         overflow:hidden;text-overflow:ellipsis;max-width:100%}
-#lcdSub{font-size:10px;color:var(--lcd-dim);font-variant-numeric:tabular-nums}
-.searchwrap{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
-#search{width:min(190px,38vw);height:20px;border-radius:var(--field-radius);
-        border:1px solid var(--lcd-line);color:var(--ink);padding:0 22px 0 22px;
-        font:11px "Lucida Grande",sans-serif;background:#fff url("data:image/svg+xml;charset=utf8,\
-%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23888' \
-stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
-%3Cpath d='M10 10l3.5 3.5'/%3E%3C/g%3E%3C/svg%3E") \
-6px 50%/11px no-repeat;box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
-#search:focus{outline:2px solid #7ba7e0;outline-offset:-1px}
-#count{font-size:10px;color:var(--chrome-ink);font-variant-numeric:tabular-nums}
-
-.body{flex:1;display:flex;min-height:0;border-top:1px solid #fff}
-
-.source{width:clamp(120px,16vw,220px);flex:none;background:var(--src-bg);
-        border-right:1px solid var(--src-line);
-        display:flex;flex-direction:column;min-height:0}
-.srchead{flex:none;height:18px;display:flex;align-items:center;justify-content:center;
-         font-size:10px;color:var(--src-head-ink);border-bottom:1px solid var(--head-div);
-         background:linear-gradient(var(--src-head-a),var(--src-head-b))}
-.srclist{flex:1;overflow-y:auto;padding:3px 0}
-.src{display:flex;align-items:center;gap:5px;padding:2px 8px;cursor:default;
-     white-space:nowrap;overflow:hidden}
-.src span{overflow:hidden;text-overflow:ellipsis}
-.src svg{flex:none}
-.src.on{background:var(--sel);color:var(--sel-ink)}
-.src.on svg{fill:var(--sel-ink)}
-
-.tracks{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0;
-        background:var(--pane)}
-.thead{position:sticky;top:0;z-index:2;display:flex;width:max-content;min-width:100%;
-       background:linear-gradient(var(--head-a),var(--head-b));
-       border-bottom:1px solid var(--head-line);font-size:10px;color:var(--head-ink)}
-.thead div{padding:3px 6px;border-right:1px solid var(--head-div);cursor:default;
-           white-space:nowrap;overflow:hidden;position:relative;user-select:none}
-.thead div:hover{background:rgba(0,0,0,.05)}
-.thead div.sorted{background:linear-gradient(var(--sorted-a),var(--sorted-b))}
-.thead div.sorted::after{content:"";position:absolute;right:4px;top:50%;margin-top:-2px;
-  border-left:3.5px solid transparent;border-right:3.5px solid transparent;
-  border-top:4px solid #4a4a4a}
-.thead div.sorted.asc::after{border-top:none;border-bottom:4px solid #4a4a4a}
-.scroll{flex:1;overflow:auto}
-.row{display:flex;height:17px;align-items:center;width:max-content;min-width:100%}
-.row:nth-child(even){background:var(--stripe)}
-.row.sel{background:var(--rowsel)}
-.row.ghost{opacity:.55;font-style:italic}
-.row.ghost.sel{opacity:.8}
-.found-gone,.found-ambiguous{color:#b23b3b;font-style:normal}
-.found-moved,.found-by-size{color:#8a6d1f;font-style:normal}
-.row div{padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.num{text-align:right;font-variant-numeric:tabular-nums}
-
-.col-text{width:148px;flex:none}
-.col-time,.col-int,.col-kbps{width:56px;flex:none}
-.col-size,.col-khz{width:76px;flex:none}
-.col-date{width:88px;flex:none}
-.col-star{width:64px;flex:none}
-.col-bool{width:54px;flex:none}
-.grow{flex:1 1 auto;width:300px;min-width:90px}
-.last{padding-right:10px}
-.star{color:#5a5a5a;letter-spacing:1px}
-
-/* Floating panels: View Options on the headers, Preferences on the gear. */
-.panel{position:fixed;z-index:20;background:#f2f2f2;border:1px solid #7a7a7a;border-radius:5px;
-    box-shadow:0 6px 20px rgba(0,0,0,.35);padding:6px 0;max-height:70vh;overflow-y:auto;
-    min-width:186px;display:none;color:#000}
-.panel.open{display:block}
-.panel h4{font-size:10px;color:#666;font-weight:400;padding:2px 12px 5px;
-       border-bottom:1px solid #d6d6d6;margin-bottom:4px}
-.panel h4:not(:first-child){margin-top:6px}
-.panel label{display:flex;align-items:center;gap:7px;padding:2px 12px;cursor:default}
-.panel label:hover{background:#3a6ea5;color:#fff}
-.panel input{margin:0}
-.panel .era{margin-left:auto;opacity:.6;font-size:9.5px;padding-left:14px}
-
-.empty{padding:26px;color:#888;text-align:center}
-.status{flex:none;height:22px;display:flex;align-items:center;justify-content:center;
-        border-top:1px solid #fff;font-size:10px;color:var(--chrome-ink);
-        text-shadow:0 1px 0 rgba(255,255,255,.5);position:relative}
-.sbtn{width:17px;height:17px;border-radius:var(--gear-radius);
-      border:1px solid var(--btn-line);
-      background:linear-gradient(var(--btn-a),var(--btn-b));cursor:pointer;
-      display:flex;align-items:center;justify-content:center;padding:0;position:relative}
-.sbtn:hover{filter:brightness(1.06)}
-.sbtn svg{fill:var(--btn-ink);pointer-events:none}
-.sbtn.on{background:linear-gradient(var(--sel),var(--sel))}
-.sbtn.on svg{fill:var(--sel-ink)}
-.sbtn b{position:absolute;right:1px;bottom:0;font-size:7px;line-height:1;
-        font-weight:700;color:var(--sel-ink);pointer-events:none}
-.modes{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;gap:4px}
-.gear{position:absolute;right:6px;top:50%;transform:translateY(-50%)}
-
-::-webkit-scrollbar{width:13px}
-::-webkit-scrollbar-track{background:var(--scroll-track);border-left:1px solid var(--head-div)}
-::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--scroll-a),var(--scroll-b));
-  border:1px solid var(--scroll-line);border-radius:6px}
-"""
-
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E"
            "%3Cpath fill='%233a6ea5' d='M5 1v9.2A2.6 2.6 0 1 0 6.6 12.6V4.6H12V1z'/%3E%3C/svg%3E")
 
-CSS = render_skins() + "\n" + LAYOUT_CSS
-
 NOTE_SVG = ("<svg width='9' height='11' viewBox='0 0 9 11' fill='%233a6ea5'>"
             "<path d='M3 0v7.1A2 2 0 1 0 4 9V3h4V0z'/></svg>")
-
-JS = r"""
-const $=s=>document.querySelector(s);
-let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=0,sortCol=-1,asc=true,rows=[],sel=-1;
-// what is playing, as a pool index, plus the queue it came from
-let nowIdx=-1,queue=[],qpos=-1,queueKey="",lcdFor=-1,lcdText="";
-let shuffleOn=false,repeatMode="off";      // off | all | one
-const MODEKEY="playlists.modes";
-// How long the button holds its result before going back to its label.
-const VLC_NOTICE_MS=1800;
-const KEY="playlists.columns", SKINKEY="playlists.skin";
-
-const mmss=s=>isFinite(s)
-  ? `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}` : "";
-const songs=n=>`${n} ${n===1?"song":"songs"}`;
-const MB=1024*1024, GB=1024*MB;
-const mb=b=>b>=GB?(b/GB).toFixed(2)+" GB":(b/MB).toFixed(1)+" MB";
-
-// iTunes stored ratings 0-100; five stars is 100.
-// iTunes stores a rating as 0-100; five stars means each is worth twenty.
-const PER_STAR=20;
-const stars=v=>v?"\u2605".repeat(Math.round(v/PER_STAR)):"";
-function fmt(v,kind,gone){
-  if(gone&&(kind==="time"||kind==="size"))return "";
-  if(v===""||v===0||v===null)return kind==="bool"?"":"";
-  switch(kind){
-    case "time":return mmss(v);
-    case "size":return mb(v);
-    case "star":return `<span class="star">${stars(v)}</span>`;
-    case "kbps":return v+" kbps";
-    case "khz":return (v/1000).toFixed(1)+" kHz";
-    case "bool":return v?"Yes":"";
-    case "found":return v==="direct"?""
-      :`<span class="found-${v.replace(/ /g,"-")}">${esc(v)}</span>`;
-    default:return esc(String(v));
-  }
-}
-const RIGHT=new Set(["time","size","int","kbps","khz"]);
-// locate() distinguishes why a track is unresolved; neither can be played
-const GONE=new Set(["gone","ambiguous"]);
-const missing=t=>GONE.has(t[FOUND]);
-// The visible rows minus the ones with no file. Four call sites wanted this.
-const playable=()=>rows.filter(i=>!missing(DATA.tracks[i]));
-function span(sec){
-  const h=sec/3600;
-  if(h>=1)return h.toFixed(1)+" hours";
-  return Math.round(sec/60)+" minutes";
-}
-
-function drawSources(){
-  $("#srclist").innerHTML=DATA.playlists.map((p,i)=>
-    `<div class="src${i===cur?" on":""}" data-i="${i}">${NOTE}<span>${esc(p.name)}</span></div>`
-  ).join("");
-}
-const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-
-function current(){
-  const q=$("#search").value.trim().toLowerCase();
-  let list=DATA.playlists[cur].ids.slice();
-  if(q)list=list.filter(i=>{const t=DATA.tracks[i];
-    return (t[0]+" "+t[2]+" "+t[3]).toLowerCase().includes(q);});
-  if(sortCol>=0){
-    list.sort((ia,ib)=>{
-      const x=DATA.tracks[ia][sortCol],y=DATA.tracks[ib][sortCol];
-      const r=typeof x==="number"&&typeof y==="number"?x-y
-        :String(x).localeCompare(String(y),undefined,{sensitivity:"base",numeric:true});
-      return asc?r:-r;
-    });
-  }
-  return list;
-}
-
-function colClass(i,nth){
-  const kind=FIELDS[i][1];
-  return `col-${kind}`+(i===0?" grow c-name":"")+(nth===vis.length-1?" last":"")
-        +(RIGHT.has(kind)?" num":"");
-}
-
-function draw(){
-  rows=current();
-  syncQueue();
-  const total=DATA.playlists[cur].ids.length;
-  const cls=vis.map(colClass);          // once per column, not once per cell
-  $("#thead").innerHTML=vis.map((f,n)=>
-    `<div class="${cls[n]}${f===sortCol?" sorted"+(asc?" asc":""):""}" `+
-    `data-c="${f}">${esc(FIELDS[f][0])}</div>`).join("");
-  $("#rows").innerHTML=rows.length?rows.map((idx,i)=>{
-    const t=DATA.tracks[idx], gone=missing(t);
-    return `<div class="row${i===sel?" sel":""}${gone?" ghost":""}`+
-      `${idx===nowIdx?" playing":""}" data-i="${i}">`+
-      vis.map((f,n)=>
-        `<div class="${cls[n]}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
-      `</div>`;}).join("")
-    : `<div class="empty">Nothing matches.</div>`;
-
-  const T=FIELDS.findIndex(f=>f[1]==="time"), S=FIELDS.findIndex(f=>f[1]==="size");
-  const here=playable();
-  const gone=rows.length-here.length;
-  const secs=here.reduce((a,i)=>a+DATA.tracks[i][T],0),
-        bytes=here.reduce((a,i)=>a+DATA.tracks[i][S],0);
-  $("#status").textContent=rows.length
-    ? songs(here.length)+`, ${span(secs)}, ${mb(bytes)}`
-      +(gone?`   \u00b7   ${gone} missing`:"")
-    : "no songs";
-  $("#count").textContent=rows.length===total?songs(total):`${rows.length} of ${total}`;
-  $("#lcdName").textContent=nowIdx>=0
-    ? label(DATA.tracks[nowIdx]) : DATA.playlists[cur].name;
-  $("#play").disabled=!here.length;   // nothing playable, even if rows show
-  // the LCD covers the whole playlist, not the filtered view, so it only
-  // changes when the playlist does -- no need to re-total it on every keystroke
-  if(cur!==lcdFor){
-    lcdFor=cur;
-    const all=DATA.playlists[cur].ids, live=all.filter(i=>!missing(DATA.tracks[i]));
-    const absent=all.length-live.length;
-    lcdText=songs(live.length)
-      +` — ${span(live.reduce((a,i)=>a+DATA.tracks[i][T],0))}`
-      +(absent?`   \u00b7   ${absent} missing`:"");
-  }
-  $("#lcdSub").textContent=lcdText;
-}
-
-function saveCols(){try{localStorage.setItem(KEY,JSON.stringify(vis));}catch(e){}}
-function loadCols(){
-  try{
-    const v=JSON.parse(localStorage.getItem(KEY));
-    if(Array.isArray(v)&&v.length&&v.every(i=>Number.isInteger(i)&&FIELDS[i]))return v;
-  }catch(e){}
-  return FIELDS.map((f,i)=>f[2]?i:-1).filter(i=>i>=0);
-}
-
-function loadModes(){
-  try{
-    const m=JSON.parse(localStorage.getItem(MODEKEY));
-    if(m&&typeof m==="object"){
-      shuffleOn=!!m.shuffle;
-      if(m.repeat in REPEAT)repeatMode=m.repeat;
-    }
-  }catch(e){}
-}
-
-function saveModes(){
-  try{localStorage.setItem(MODEKEY,JSON.stringify(
-    {shuffle:shuffleOn,repeat:repeatMode}));}catch(e){}
-}
-
-function paintModes(){
-  $("#shuffle").classList.toggle("on",shuffleOn);
-  $("#shuffle").title=shuffleOn?"Shuffle on":"Shuffle";
-  $("#repeat").classList.toggle("on",repeatMode!=="off");
-  $("#repeatBadge").textContent=repeatMode==="one"?"1":"";
-  $("#repeat").title="Repeat "+repeatMode;
-  audio.loop=(repeatMode==="one");
-}
-
-function skinName(){
-  try{
-    const v=localStorage.getItem(SKINKEY);
-    if(SKINS.some(k=>k[0]===v))return v;
-  }catch(e){}
-  return SKINS[0][0];
-}
-
-function applySkin(name){
-  // Greenwood is the base stylesheet, so it carries no attribute at all
-  if(name===SKINS[0][0])document.documentElement.removeAttribute("data-skin");
-  else document.documentElement.setAttribute("data-skin",name);
-  try{localStorage.setItem(SKINKEY,name);}catch(e){}
-}
-
-function buildPrefs(){
-  const now=skinName();
-  $("#prefs").innerHTML="<h4>Appearance</h4>"+SKINS.map(([id,label,era])=>
-    `<label><input type="radio" name="skin" value="${id}"${id===now?" checked":""}>`+
-    `${esc(label)}<span class="era">${esc(era)}</span></label>`).join("");
-}
-
-function buildOptions(){
-  $("#vo").innerHTML="<h4>View Options</h4>"+FIELDS.map((f,i)=>
-    `<label><input type="checkbox" data-f="${i}"${vis.includes(i)?" checked":""}`+
-    `${i===0?" disabled":""}> ${esc(f[0])}</label>`).join("");
-}
-
-const audio=$("#audio");
-// paint() fires on every timeupdate, so these are resolved once rather than
-// looked up four times a second for the life of the page.
-let el={};
-let painted={on:null,elapsed:"",left:"",ends:null};
-
-function label(t){
-  const artist=t[2]||t[8];
-  return artist?`${t[0]} — ${artist}`:t[0];
-}
-
-function shuffled(list,first){
-  const out=list.slice();
-  for(let i=out.length-1;i>0;i--){            // Fisher-Yates
-    const j=Math.floor(Math.random()*(i+1));
-    [out[i],out[j]]=[out[j],out[i]];
-  }
-  // whatever is playing stays put; only what comes after is reordered
-  if(first!==undefined){
-    const at=out.indexOf(first);
-    if(at>0)[out[0],out[at]]=[out[at],out[0]];
-  }
-  return out;
-}
-
-/* The queue is the visible rows. Rebuild it only when that *set* changes --
-   selecting a row or retyping the same search must not reshuffle underfoot. */
-function syncQueue(force){
-  const list=playable();
-  const key=list.join(",");
-  if(!force&&key===queueKey)return;
-  queueKey=key;
-  queue=shuffleOn?shuffled(list,nowIdx>=0?nowIdx:undefined):list;
-  qpos=queue.indexOf(nowIdx);
-}
-
-function play(poolIndex){
-  const t=DATA.tracks[poolIndex];
-  if(missing(t))return;
-  nowIdx=poolIndex;
-  syncQueue(true);
-  qpos=queue.indexOf(poolIndex);
-  audio.src=location.protocol==="file:"?DATA.files[poolIndex]:"audio?i="+poolIndex;
-  audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
-  draw();
-}
-
-function step(by){
-  if(!queue.length)return;
-  let at=qpos+by;
-  if(at<0||at>=queue.length){
-    if(repeatMode!=="all"){stop();return;}
-    at=(at+queue.length)%queue.length;
-  }
-  play(queue[at]);
-}
-
-function stop(){
-  audio.pause(); audio.removeAttribute("src"); audio.load();
-  nowIdx=-1; qpos=-1; paint(); draw();
-}
-
-function lcd(msg){ $("#lcdName").textContent=msg; }
-
-function paint(){
-  const on=nowIdx>=0&&!audio.paused;
-  if(on!==painted.on){                  // play state holds for a whole track
-    painted.on=on;
-    el.toggleIcon.innerHTML=on
-      ? '<path d="M2 1h3.5v12H2zM7.5 1H11v12H7.5z"/>'
-      : '<path d="M2 1v12l9.5-6z"/>';
-    el.toggle.title=on?"Pause":"Play";
-  }
-  const ends=nowIdx<0;
-  if(ends!==painted.ends){painted.ends=ends; el.prev.disabled=el.next.disabled=ends;}
-
-  const d=audio.duration||0, c=audio.currentTime||0;
-  el.barFill.style.width=d?`${100*c/d}%`:"0";     // the only per-tick write
-
-  // the clocks read to the second but timeupdate fires about four times a
-  // second, so three writes in four would set the same string
-  const elapsed=nowIdx>=0?mmss(c):"", left=nowIdx>=0&&d?"-"+mmss(d-c):"";
-  if(elapsed!==painted.elapsed){painted.elapsed=elapsed; el.elapsed.textContent=elapsed;}
-  if(left!==painted.left){painted.left=left; el.left.textContent=left;}
-}
-
-function boot(){
-  for(const id of ["toggleIcon","toggle","barFill","elapsed","left","prev","next"])
-    el[id]=$("#"+id);
-  FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
-  applySkin(skinName()); buildPrefs(); loadModes(); paintModes();
-  drawSources();buildOptions();draw();paint();
-
-  $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
-    cur=+el.dataset.i;sel=-1;$("#search").value="";
-    drawSources();draw();$("#scroll").scrollTop=0;};
-  $("#thead").onclick=e=>{const el=e.target.closest("div[data-c]");if(!el)return;
-    const c=+el.dataset.c; asc=(c===sortCol)?!asc:true; sortCol=c; sel=-1; draw();};
-  $("#rows").onclick=e=>{const el=e.target.closest(".row");if(!el)return;
-    sel=+el.dataset.i;
-    // moving a highlight must not rebuild a thousand rows of innerHTML
-    $("#rows").querySelector(".row.sel")?.classList.remove("sel");
-    el.classList.add("sel");};
-  $("#rows").ondblclick=e=>{const el=e.target.closest(".row");if(!el)return;
-    play(rows[+el.dataset.i]);};
-
-  $("#toggle").onclick=()=>{
-    if(nowIdx<0){                       // nothing cued: start at the selection
-      const start=sel>=0?rows[sel]:playable()[0];
-      if(start!==undefined)play(start);
-      return;
-    }
-    audio.paused?audio.play():audio.pause();
-  };
-  $("#prev").onclick=()=>step(-1);
-  $("#next").onclick=()=>step(1);
-  $("#vol").oninput=e=>{audio.volume=+e.target.value;};
-
-  $("#shuffle").onclick=()=>{
-    shuffleOn=!shuffleOn;
-    syncQueue(true);                     // reshuffle, as iTunes did on each toggle
-    saveModes(); paintModes(); draw();
-  };
-  $("#repeat").onclick=()=>{
-    repeatMode=REPEAT[repeatMode];
-    saveModes(); paintModes();
-  };
-
-  $("#bar").onclick=e=>{
-    if(!audio.duration)return;
-    const r=$("#bar").getBoundingClientRect();
-    audio.currentTime=audio.duration*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
-  };
-
-  audio.addEventListener("timeupdate",paint);
-  audio.addEventListener("play",paint);
-  audio.addEventListener("pause",paint);
-  audio.addEventListener("loadedmetadata",paint);
-  audio.addEventListener("ended",()=>step(1));
-  audio.addEventListener("error",()=>{
-    const t=DATA.tracks[nowIdx];
-    lcd(t?`Cannot play ${t[0]}`:"Playback failed");
-  });
-  $("#search").oninput=()=>{sel=-1;draw();};
-
-  $("#play").onclick=async()=>{
-    const pl=DATA.playlists[cur], btn=$("#play"), label=$("#playLabel");
-    if(!rows.length)return;
-    btn.disabled=true; label.textContent="Opening\u2026";
-    let msg="Play in VLC";
-    try{
-      const r=await fetch("play",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name:pl.name,
-          indices:playable()})});
-      if(!r.ok)msg=(await r.json()).error||"Failed";
-    }catch(e){ msg="Server not running"; }
-    label.textContent=msg==="Play in VLC"?"Playing\u2026":msg;
-    setTimeout(()=>{label.textContent="Play in VLC";btn.disabled=false;},VLC_NOTICE_MS);
-  };
-
-  // right-click the headers for the column picker, as iTunes did
-  const openPanel=(el,x,y)=>{
-    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("open"));
-    el.style.left=Math.min(x,innerWidth-210)+"px";
-    el.style.top=Math.min(y,innerHeight-el.scrollHeight-12)+"px";
-    el.classList.add("open");
-  };
-  $("#thead").oncontextmenu=e=>{e.preventDefault();openPanel($("#vo"),e.clientX,e.clientY);};
-  $("#gear").onclick=e=>{
-    e.stopPropagation();
-    const r=$("#gear").getBoundingClientRect();
-    openPanel($("#prefs"),r.right-200,r.top-$("#prefs").scrollHeight-8);
-  };
-  $("#prefs").onchange=e=>{ applySkin(e.target.value); };
-  $("#vo").onchange=e=>{
-    const i=+e.target.dataset.f;
-    vis = e.target.checked ? FIELDS.map((_,n)=>n).filter(n=>n===i||vis.includes(n))
-                           : vis.filter(n=>n!==i);
-    if(!vis.includes(sortCol))sortCol=-1;
-    saveCols();draw();
-  };
-  document.addEventListener("mousedown",e=>{
-    if(e.target.closest(".panel")||e.target.closest("#thead")||e.target.closest("#gear"))return;
-    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("open"));
-  });
-}
-
-DATA=LIBRARY;boot();
-"""
 
 
 def write_page(out_dir, n_playlists, n_refs):
@@ -1216,7 +687,7 @@ def write_page(out_dir, n_playlists, n_refs):
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Playlists</title>
-<link rel="icon" href="{FAVICON}"><style>{CSS}</style></head>
+<link rel="icon" href="{FAVICON}"><link rel="stylesheet" href="style.css"></head>
 <body>
 <div class="win metal">
   <div class="title metal"><div class="lights"><i></i><i></i><i></i></div>Playlists</div>
@@ -1298,11 +769,15 @@ const SKINS={skins_json};
 const REPEAT={repeat_json};
 </script>
 <script src="data.js"></script>
-<script>{JS}</script>
+<script src="app.js"></script>
 </body></html>"""
     path = os.path.join(out_dir, "index.html")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(doc)
+    # The skins are generated from Python data; the layout is a plain file.
+    with open(os.path.join(out_dir, "style.css"), "w", encoding="utf-8") as fh:
+        fh.write(render_skins() + "\n" + read_static("layout.css"))
+    shutil.copyfile(os.path.join(STATIC, "app.js"), os.path.join(out_dir, "app.js"))
     print(f"  index.html {os.path.getsize(path) / 1024:.0f} KB "
           f"({n_playlists} playlists, {n_refs} refs)")
 

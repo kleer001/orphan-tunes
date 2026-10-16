@@ -18,12 +18,16 @@ GENERATED = [
     "paths.json",
     "data.js",
     "index.html",
+    "app.js",
+    "style.css",
+    "art/0123abcd.jpg",
     "_now_playing.m3u8",
     "Some Playlist.m3u8",
 ]
 
 SOURCE = [
-    "build_browser.py", "make_playlists.py", "serve.py", "config.py",
+    "build_browser.py", "static/app.js", "static/layout.css", "make_playlists.py",
+    "serve.py", "config.py",
     "config.toml", "tools/demangle.py", "README.md", "CLAUDE.md",
     "tests/test_gitignore.py",
 ]
