@@ -32,9 +32,20 @@ def test_running_off_either_end_checks_the_mode_before_wrapping():
     assert "(at+queue.length)%queue.length" in JS, "the wrap must cover both ends"
 
 
-def test_the_queue_is_not_rebuilt_unless_the_visible_set_changed():
-    """Rebuilding on every draw would reshuffle on each keystroke."""
-    assert "if(!force&&key===queueKey)return" in JS
+def test_the_queue_is_the_list_play_started_from():
+    """Browsing or searching afterwards must not change what plays next, so
+    drawing the view never touches the queue."""
+    draw = JS[JS.index("function draw(){"):JS.index("\nfunction ", JS.index("function draw(){"))]
+    assert "queue" not in draw and "context" not in draw
+    assert "context=live(list)" in JS
+
+
+def test_up_next_plays_ahead_of_the_queue():
+    assert "if(by>0&&upNext.length)" in JS
+
+
+def test_back_from_an_up_next_track_returns_to_the_track_it_interrupted():
+    assert "fromUpNext&&by<0?qpos:qpos+by" in JS
 
 
 def test_shuffle_keeps_the_playing_track_in_place():

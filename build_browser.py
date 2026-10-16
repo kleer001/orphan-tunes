@@ -9,12 +9,15 @@ index.html. Reads only. The page opens straight from disk; the VLC button
 needs serve.py.
 """
 
+import hashlib
 import json
 import os
 import plistlib
 import shutil
+import subprocess
 import sys
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
@@ -22,6 +25,10 @@ from make_playlists import index_by_name, locate  # the .m3u8 writer's own
 
 # The page's script and layout stylesheet, copied next to index.html at build time.
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+# Cover size on disk. The grid shows covers at about 170 px; a little over
+# that keeps them sharp without making the art directory heavy.
+ART_PX = 240
 
 # iTunes records durations in milliseconds; the page wants whole seconds.
 MILLISECONDS = 1000
@@ -80,37 +87,104 @@ class Library(NamedTuple):
     """What the page needs, separated from how it gets written out.
 
     `paths` is index-aligned with `tracks` and stays server-side: the page is
-    only ever given row numbers.
+    only ever given row numbers. `music` lists the pool rows that make up the
+    Library source; `albums` groups the whole pool, so a playlist's albums can
+    be shown too.
     """
 
     tracks: list
     paths: list
     playlists: list
     missing: int
+    music: list
+    albums: list
 
     @property
     def refs(self):
         return sum(len(p["ids"]) for p in self.playlists)
 
 
+# iTunes' Music library left these out; they had sources of their own.
+NOT_MUSIC = ("Podcast", "Movie", "TV Show")
+COMPILATIONS = "Compilations"
+
+
+def is_music(track):
+    """A local file that iTunes would have listed under Music."""
+    return track.get("Location", "").startswith("file://") \
+        and not any(track.get(k) for k in NOT_MUSIC)
+
+
+def sort_text(track, key, sort_key):
+    """iTunes' own sort key when it kept one, else the text without a leading "The"."""
+    text = track.get(sort_key) or track.get(key) or ""
+    return (text[4:] if text.lower().startswith("the ") else text).lower()
+
+
+def album_of(track):
+    """(artist, album) as iTunes grouped them: by Album Artist, else Artist, with
+    compilations pooled so their guest artists do not each get an entry."""
+    if track.get("Compilation"):
+        artist, artist_sort = COMPILATIONS, ""     # sorts ahead of every name
+    else:
+        artist = track.get("Album Artist") or track.get("Artist") or "Unknown Artist"
+        artist_sort = sort_text(track, "Album Artist", "Sort Album Artist") \
+            if track.get("Album Artist") else sort_text(track, "Artist", "Sort Artist")
+    album = track.get("Album") or "Unknown Album"
+    return artist, album, artist_sort, sort_text(track, "Album", "Sort Album")
+
+
+class Album(NamedTuple):
+    title: str
+    artist: str
+    year: int
+    ids: list          # pool rows in disc and track order
+    art_from: str      # a file with embedded artwork, or "" when none has any
+
+
+def group_albums(tracks, paths):
+    """One Album per (artist, album) across the pool, sorted as iTunes 11 listed
+    them. `tracks` is the raw library entry for each pool row."""
+    groups = {}
+    for row, track in enumerate(tracks):
+        artist, album, artist_sort, album_sort = album_of(track)
+        groups.setdefault((artist_sort, album_sort, artist, album), []).append(row)
+
+    def order(row):
+        t = tracks[row]
+        return (t.get("Disc Number", 0), t.get("Track Number", 0), t.get("Name", ""))
+
+    albums = []
+    for (_, _, artist, album), ids in sorted(groups.items()):
+        ids.sort(key=order)
+        art = next((paths[i] for i in ids if paths[i] and tracks[i].get("Artwork Count")), "")
+        albums.append(Album(album, artist, max(tracks[i].get("Year", 0) for i in ids), ids, art))
+    return albums
+
+
 def read_library():
-    """Resolve every regular playlist against the files actually on disk."""
+    """Every music track plus every regular playlist, resolved against the files
+    actually on disk."""
     with open(LIBRARY, "rb") as fh:
         lib = plistlib.load(fh)
     tracks = lib["Tracks"]
     index = index_by_name(LOCAL_ROOT)
 
-    pool, paths, seen = [], [], {}
+    pool, paths, seen, raw = [], [], {}, []
     playlists, missing = [], 0
 
-    def intern(track, path, how):
+    def intern(track):
         """Add a track to the shared pool once; playlists store only offsets."""
         key = track["Track ID"]
         if key not in seen:
+            path, how = locate(track, index)
             seen[key] = len(pool)
             pool.append([cell(track, k, kind) for k, _, kind, _ in FIELDS] + [how])
             paths.append(path)                 # None when the file was not found
+            raw.append(track)
         return seen[key]
+
+    music = [intern(t) for t in tracks.values() if is_music(t)]
 
     for playlist in lib["Playlists"]:
         if "Smart Info" in playlist or playlist.get("Master") \
@@ -121,18 +195,71 @@ def read_library():
             track = tracks.get(str(item["Track ID"]))
             if not track or not track.get("Location"):
                 continue
-            path, how = locate(track, index)
-            if not path:
+            row = intern(track)
+            if paths[row] is None:
                 missing += 1
-            ids.append(intern(track, path, how))
+            ids.append(row)
         if ids:
             playlists.append({"name": playlist["Name"], "ids": ids})
 
     playlists.sort(key=lambda p: p["name"].lower())
-    return Library(pool, paths, playlists, missing)
+    albums = group_albums(raw, paths)
+    return Library(pool, paths, playlists, missing, music, albums)
 
 
-def write_data(library, out_dir):
+def run_ffmpeg(*args):
+    return subprocess.run(["ffmpeg", "-v", "error", "-nostdin", *args],
+                          capture_output=True, check=False)
+
+
+def extract_cover(src, dest):
+    """Write the embedded cover of `src` to `dest`; return its average colour as
+    "#rrggbb", or None when the file holds no picture ffmpeg can read."""
+    made = run_ffmpeg("-y", "-i", src, "-map", "0:v:0", "-frames:v", "1",
+                      "-vf", f"scale={ART_PX}:{ART_PX}:force_original_aspect_ratio=decrease",
+                      "-q:v", "4", dest)
+    if made.returncode or not os.path.isfile(dest):
+        return None
+    # Scaled to one pixel by area, which is the mean of the whole picture.
+    pixel = run_ffmpeg("-i", dest, "-vf", "scale=1:1:flags=area",
+                       "-f", "rawvideo", "-pix_fmt", "rgb24", "-").stdout
+    return "#" + pixel[:3].hex()
+
+
+def extract_art(albums, out_dir):
+    """{album index: (url, colour)} for every album with a readable cover.
+
+    Covers are cached in art/ under a hash of the file they came from, with
+    art.json recording each result -- including "no picture" -- so a rebuild
+    only runs ffmpeg for albums it has not seen.
+    """
+    art_dir = os.path.join(out_dir, "art")
+    os.makedirs(art_dir, exist_ok=True)
+    manifest_path = os.path.join(art_dir, "art.json")
+    manifest = {}
+    if os.path.isfile(manifest_path):
+        with open(manifest_path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+
+    names = {a.art_from: hashlib.sha1(a.art_from.encode()).hexdigest()[:16]
+             for a in albums if a.art_from}
+    todo = [src for src, name in names.items() if name not in manifest]
+    if todo:
+        print(f"  extracting {len(todo)} covers with ffmpeg ...")
+        with ThreadPoolExecutor() as pool:
+            colours = pool.map(lambda src: extract_cover(
+                src, os.path.join(art_dir, names[src] + ".jpg")), todo)
+            for src, colour in zip(todo, colours, strict=True):
+                manifest[names[src]] = colour
+        with open(manifest_path, "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=0, sort_keys=True)
+
+    return {i: (f"art/{names[a.art_from]}.jpg", manifest[names[a.art_from]])
+            for i, a in enumerate(albums)
+            if a.art_from and manifest[names[a.art_from]]}
+
+
+def write_data(library, out_dir, art):
     """Two files: what the page reads, and what only the server reads."""
     fields = [[label, kind, show] for _, label, kind, show in FIELDS]
     fields.append(["Found", "found", False])   # derived, not from the library
@@ -142,8 +269,10 @@ def write_data(library, out_dir):
     # a filename would be read as a fragment or an escape.
     files = [urllib.parse.quote(os.path.relpath(p, out_dir)) if p else None
              for p in library.paths]
+    albums = [[a.title, a.artist, a.year, *art.get(i, ("", "")), a.ids]
+              for i, a in enumerate(library.albums)]
     data = {"fields": fields, "tracks": library.tracks, "playlists": library.playlists,
-            "files": files}
+            "files": files, "music": library.music, "albums": albums}
     # A script, not JSON: Firefox refuses fetch() between file:// pages, but
     # still runs a <script src>, so the page also works opened from disk.
     path = os.path.join(out_dir, "data.js")
@@ -708,7 +837,8 @@ def write_page(out_dir, n_playlists, n_refs):
       <input class="vol" id="vol" type="range" min="0" max="1" step="0.01" value="1"
              title="Volume">
     </div>
-    <div class="lcd">
+    <div class="lcd" id="lcd">
+      <img id="lcdArt" alt="">
       <div id="lcdName">&nbsp;</div>
       <div id="lcdSub">&nbsp;</div>
       <div class="bar" id="bar"><span id="barFill" style="width:0"></span></div>
@@ -731,9 +861,33 @@ def write_page(out_dir, n_playlists, n_refs):
       <div class="srclist" id="srclist"></div>
     </div>
     <div class="tracks">
-      <div class="scroll" id="scroll">
-        <div class="thead" id="thead"></div>
-        <div id="rows"></div>
+      <div class="viewbar">
+        <div class="seg" id="views">
+          <button data-v="songs">Songs</button><button data-v="albums">Albums</button><button
+            data-v="artists">Artists</button>
+        </div>
+        <button class="sbtn browse" id="browse" title="Show Browser (Ctrl+B)">
+          <svg width="11" height="11" viewBox="0 0 12 12"><path d="M0 1h12v10H0zm1 1v8h2.8V2zm3.8
+            0v8h2.4V2zm3.4 0v8H11V2z"/></svg>
+        </button>
+      </div>
+      <div class="view" id="vsongs">
+        <div class="browser" id="browser">
+          <div class="pane"><h5>Genre</h5><div class="plist" id="pgenre"></div></div>
+          <div class="pane"><h5>Artist</h5><div class="plist" id="partist"></div></div>
+          <div class="pane"><h5>Album</h5><div class="plist" id="palbum"></div></div>
+        </div>
+        <div class="scroll" id="scroll">
+          <div class="thead" id="thead"></div>
+          <div id="rows"></div>
+        </div>
+      </div>
+      <div class="view" id="valbums"><div class="grid" id="grid"></div></div>
+      <div class="view" id="vartists">
+        <div class="artists">
+          <div class="alist" id="alist"></div>
+          <div class="adetail" id="adetail"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -749,6 +903,11 @@ def write_page(out_dir, n_playlists, n_refs):
           H1.4v3.3h1.2zM9.4 8.6h-6V7L1 9.1l2.4 2.1V9.8h7.2V6.5H9.4z"/></svg>
         <b id="repeatBadge"></b>
       </button>
+      <button class="sbtn" id="upnextBtn" title="Up Next">
+        <svg width="11" height="11" viewBox="0 0 12 12"><path d="M0 1h2v2H0zm3 0h9v2H3zM0
+          5h2v2H0zm3 0h9v2H3zM0 9h2v2H0zm3 0h9v2H3z"/></svg>
+        <b id="upnextBadge"></b>
+      </button>
     </div>
     <span id="status"></span>
     <button class="sbtn gear" id="gear" title="Preferences">
@@ -763,6 +922,8 @@ def write_page(out_dir, n_playlists, n_refs):
 </div>
 <div class="panel" id="vo"></div>
 <div class="panel" id="prefs"></div>
+<div class="panel menu" id="ctx"></div>
+<div class="panel" id="upnext"></div>
 <script>
 const NOTE="{NOTE_SVG}";
 const SKINS={skins_json};
@@ -787,7 +948,10 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     print(f"building into {out_dir}")
     library = read_library()
-    size = write_data(library, out_dir)
+    art = extract_art(library.albums, out_dir)
+    size = write_data(library, out_dir, art)
+    print(f"  {len(library.music)} library tracks, {len(library.albums)} albums, "
+          f"{len(art)} with covers")
     print(f"  {len(library.playlists)} playlists, {library.refs} track refs, "
           f"{len(library.tracks)} unique tracks, {library.missing} shown as missing")
     print(f"  data.js {size / 1e6:.1f} MB")

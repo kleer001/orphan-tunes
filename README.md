@@ -32,8 +32,12 @@ What it can't find, it shows you. Greyed out, with the reason.
 
 - **Plain `.m3u8` files.** Tested with VLC; any player that reads m3u8 should
   take them. If that's all you wanted, stop after the first command.
-- **A browsable page.** Sort, search, 29 library fields as columns.
-- **Playback in the browser**, or hand the current view to VLC in the order shown.
+- **A browsable page.** The whole music library plus every playlist. Sort,
+  search, 29 library fields as columns, and a Genre | Artist | Album browser.
+- **Album and artist views**, iTunes 11 style, with covers taken from the
+  artwork embedded in your files (needs `ffmpeg`).
+- **Playback in the browser**, with Up Next, media keys and keyboard control, or
+  hand the current view to VLC in the order shown.
 - **Eight skins**, because why not.
 
 ## Eight skins
@@ -66,4 +70,4 @@ Corporation. iTunes is a trademark of Apple Inc.; Windows is a trademark of
 Microsoft Corporation. This reads library files you already own and contains no
 code or assets from either company.
 
-[How it works](docs/how-it-works.md) · Python 3.11+, no dependencies · MIT
+[How it works](docs/how-it-works.md) · Python 3.11+ and ffmpeg, no Python dependencies · MIT

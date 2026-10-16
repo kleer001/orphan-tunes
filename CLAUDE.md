@@ -20,6 +20,8 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   track on disk) and `safe_name()` (playlist title → filename).
 - `build_browser.py` — library XML → `index.html`, `data.js`, `paths.json`,
   plus `style.css` (skins + `static/layout.css`) and `app.js` (from `static/`).
+  Album covers are pulled from embedded artwork with `ffmpeg` into `art/` in the
+  output directory; `art/art.json` caches every result so rebuilds are quick.
   Imports `locate` and `safe_name` rather than reimplementing them; if track
   resolution changes, it changes in one place.
 - `serve.py` — static server plus `POST /play`.
