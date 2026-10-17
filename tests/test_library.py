@@ -46,6 +46,13 @@ def test_cell_makes_booleans_numeric():
     assert cell({"Compilation": True}, "Compilation", "bool") == 1
 
 
+def test_cell_marks_a_computed_rating_negative_so_the_page_can_draw_it_hollow():
+    assert cell({"Rating": 60}, "Rating", "star") == 60
+    assert cell({"Rating": 60, "Rating Computed": True}, "Rating", "star") == -60
+    assert cell({"Album Rating": 80, "Album Rating Computed": True},
+                "Album Rating", "star") == -80
+
+
 def test_refs_counts_every_playlist_entry():
     lib = Library(tracks=[], paths=[], missing=0, music=[], albums=[],
                   playlists=[{"name": "a", "ids": [1, 2]}, {"name": "b", "ids": [3]}])

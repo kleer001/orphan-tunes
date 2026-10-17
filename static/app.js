@@ -12,7 +12,7 @@ let view="songs",browserOn=false,browse={genre:null,artist:null,album:null};
 let openAlbum=-1,artistSel=null,viewAlbums=[],viewAlbumIds=new Map();
 // pool index -> album index, and artist -> its place in iTunes' artist order
 let ALBUM_OF=null,ARTIST_RANK=new Map();
-let T=-1,S=-1,GENRE=-1,TRACKNO=-1;
+let T=-1,S=-1,GENRE=-1,TRACKNO=-1,RATING=-1;
 const MODEKEY="playlists.modes", VIEWKEY="playlists.view";
 // How long the button holds its result before going back to its label.
 const VLC_NOTICE_MS=1800;
@@ -33,8 +33,9 @@ const MB=1024*1024, GB=1024*MB;
 const mb=b=>b>=GB?(b/GB).toFixed(2)+" GB":(b/MB).toFixed(1)+" MB";
 
 // iTunes stores a rating as 0-100; five stars means each is worth twenty.
+// A negative rating is one iTunes computed from the album's, drawn hollow.
 const PER_STAR=20;
-const stars=v=>v?"★".repeat(Math.round(v/PER_STAR)):"";
+const stars=v=>v?(v<0?"☆":"★").repeat(Math.round(Math.abs(v)/PER_STAR)):"";
 function fmt(v,kind,gone){
   if(gone&&(kind==="time"||kind==="size"))return "";
   if(v===""||v===0||v===null)return kind==="bool"?"":"";
@@ -99,7 +100,8 @@ function sorted(list){
   if(sortCol>=0){
     list.sort((ia,ib)=>{
       const x=DATA.tracks[ia][sortCol],y=DATA.tracks[ib][sortCol];
-      const r=typeof x==="number"&&typeof y==="number"?x-y
+      // abs: a computed rating is stored negative, and sorts with its stars
+      const r=typeof x==="number"&&typeof y==="number"?Math.abs(x)-Math.abs(y)
         :String(x).localeCompare(String(y),undefined,{sensitivity:"base",numeric:true});
       return asc?r:-r;
     });
@@ -248,7 +250,8 @@ function coverHtml(a,lazy){
 function trkHtml(i,n){
   const t=DATA.tracks[i];
   return `<div class="trk${missing(t)?" ghost":""}${i===nowIdx?" playing":""}" data-t="${i}">`+
-    `<i>${t[TRACKNO]||n+1}</i><span>${esc(t[0])}</span><em>${mmss(t[T])}</em></div>`;
+    `<i>${t[TRACKNO]||n+1}</i><span>${esc(t[0])}</span>`+
+    `<b class="star">${stars(t[RATING])}</b><em>${mmss(t[T])}</em></div>`;
 }
 
 function albumSub(a,ids){
@@ -649,6 +652,7 @@ function boot(){
   FIELDS=DATA.fields; FOUND=FIELDS.length-1; vis=loadCols();
   T=FIELDS.findIndex(f=>f[1]==="time"); S=FIELDS.findIndex(f=>f[1]==="size");
   GENRE=FIELDS.findIndex(f=>f[0]==="Genre"); TRACKNO=FIELDS.findIndex(f=>f[0]==="#");
+  RATING=FIELDS.findIndex(f=>f[0]==="Rating");
   ALBUM_OF=new Int32Array(DATA.tracks.length);
   DATA.albums.forEach((al,a)=>{
     for(const i of al[A_IDS])ALBUM_OF[i]=a;

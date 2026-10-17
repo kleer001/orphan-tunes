@@ -55,7 +55,7 @@ FIELDS = [
     ("Track Count",    "of",          "int",  False),
     ("Disc Number",    "Disc",        "int",  False),
     ("Disc Count",     "Discs",       "int",  False),
-    ("Rating",         "Rating",      "star", False),
+    ("Rating",         "Rating",      "star", True),
     ("Album Rating",   "Album Rating", "star", False),
     ("BPM",            "BPM",         "int",  False),
     ("Bit Rate",       "Bit Rate",    "kbps", False),
@@ -80,6 +80,8 @@ def cell(track, key, kind):
         return v.strftime("%Y-%m-%d")          # plist datetime -> sortable string
     if kind == "bool":
         return 1 if v else 0
+    if kind == "star" and track.get(key + " Computed"):
+        return -v                              # derived by iTunes, not set by hand
     return v
 
 
