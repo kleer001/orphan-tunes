@@ -29,6 +29,31 @@ def test_every_override_names_a_token_the_base_defines():
         assert not unknown, f"{skin.id} sets tokens that do not exist: {sorted(unknown)}"
 
 
+# WCAG's floor for body text.
+MIN_CONTRAST = 4.5
+
+
+def luminance(hex_colour):
+    """WCAG relative luminance of a #rgb or #rrggbb colour."""
+    h = hex_colour.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+           for c in (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def test_every_skin_keeps_the_selected_row_readable():
+    for skin in SKINS:
+        tokens = {**BASE_TOKENS, **skin.tokens}
+        ink = tokens["--rowsel-ink"]
+        if ink == "var(--ink)":
+            ink = tokens["--ink"]
+        hi, lo = sorted((luminance(ink), luminance(tokens["--rowsel"])), reverse=True)
+        ratio = (hi + 0.05) / (lo + 0.05)
+        assert ratio >= MIN_CONTRAST, f"{skin.id}: selected row contrast {ratio:.1f}"
+
+
 def test_no_skin_claims_an_era_that_changed_the_layout():
     """iTunes 11 hid the sidebar and 12 moved to tabs; neither is a repaint."""
     for skin in SKINS:

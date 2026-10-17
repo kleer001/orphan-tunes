@@ -108,7 +108,7 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .scroll{flex:1;overflow:auto;position:relative}
 .row{display:flex;height:17px;align-items:center;width:max-content;min-width:100%}
 .row.alt{background:var(--stripe)}
-.row.sel{background:var(--rowsel)}
+.row.sel{background:var(--rowsel);color:var(--rowsel-ink)}
 .row.ghost{opacity:.55;font-style:italic}
 .row.ghost.sel{opacity:.8}
 .found-gone,.found-ambiguous{color:#b23b3b;font-style:normal}
@@ -227,7 +227,7 @@ div.cover svg{width:38%;height:38%;fill:#9aa0aa}
 .trk .star{flex:none}
 .trk em{font-style:normal;opacity:.6;font-variant-numeric:tabular-nums}
 .trk:hover{background:rgba(127,127,127,.18)}
-.trk.sel{background:var(--rowsel)}
+.trk.sel{background:var(--rowsel);color:var(--rowsel-ink)}
 .trk.playing{font-weight:600}
 .trk.playing i::before{content:"\25B6";font-size:8px}
 .trk.playing i{font-size:0}
