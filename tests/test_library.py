@@ -46,11 +46,11 @@ def test_cell_makes_booleans_numeric():
     assert cell({"Compilation": True}, "Compilation", "bool") == 1
 
 
-def test_cell_marks_a_computed_rating_negative_so_the_page_can_draw_it_hollow():
+def test_cell_marks_a_computed_rating_half_a_point_low_so_the_page_can_draw_it_hollow():
     assert cell({"Rating": 60}, "Rating", "star") == 60
-    assert cell({"Rating": 60, "Rating Computed": True}, "Rating", "star") == -60
+    assert cell({"Rating": 60, "Rating Computed": True}, "Rating", "star") == 59.5
     assert cell({"Album Rating": 80, "Album Rating Computed": True},
-                "Album Rating", "star") == -80
+                "Album Rating", "star") == 79.5
 
 
 def test_refs_counts_every_playlist_entry():

@@ -224,7 +224,7 @@ div.cover svg{width:38%;height:38%;fill:#9aa0aa}
 .trk i{font-style:normal;opacity:.6;width:18px;text-align:right;flex:none;
   font-variant-numeric:tabular-nums}
 .trk span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trk b{font-weight:normal;flex:none}
+.trk .star{flex:none}
 .trk em{font-style:normal;opacity:.6;font-variant-numeric:tabular-nums}
 .trk:hover{background:rgba(127,127,127,.18)}
 .trk.sel{background:var(--rowsel)}

@@ -33,9 +33,10 @@ const MB=1024*1024, GB=1024*MB;
 const mb=b=>b>=GB?(b/GB).toFixed(2)+" GB":(b/MB).toFixed(1)+" MB";
 
 // iTunes stores a rating as 0-100; five stars means each is worth twenty.
-// A negative rating is one iTunes computed from the album's, drawn hollow.
+// A rating half a point low is one iTunes computed from the album's, drawn
+// hollow; it still sorts with its star count, just below the hand-set ones.
 const PER_STAR=20;
-const stars=v=>v?(v<0?"☆":"★").repeat(Math.round(Math.abs(v)/PER_STAR)):"";
+const stars=v=>v?(Number.isInteger(v)?"★":"☆").repeat(Math.round(v/PER_STAR)):"";
 function fmt(v,kind,gone){
   if(gone&&(kind==="time"||kind==="size"))return "";
   if(v===""||v===0||v===null)return kind==="bool"?"":"";
@@ -100,8 +101,7 @@ function sorted(list){
   if(sortCol>=0){
     list.sort((ia,ib)=>{
       const x=DATA.tracks[ia][sortCol],y=DATA.tracks[ib][sortCol];
-      // abs: a computed rating is stored negative, and sorts with its stars
-      const r=typeof x==="number"&&typeof y==="number"?Math.abs(x)-Math.abs(y)
+      const r=typeof x==="number"&&typeof y==="number"?x-y
         :String(x).localeCompare(String(y),undefined,{sensitivity:"base",numeric:true});
       return asc?r:-r;
     });
@@ -251,7 +251,7 @@ function trkHtml(i,n){
   const t=DATA.tracks[i];
   return `<div class="trk${missing(t)?" ghost":""}${i===nowIdx?" playing":""}" data-t="${i}">`+
     `<i>${t[TRACKNO]||n+1}</i><span>${esc(t[0])}</span>`+
-    `<b class="star">${stars(t[RATING])}</b><em>${mmss(t[T])}</em></div>`;
+    `${fmt(t[RATING],"star")}<em>${mmss(t[T])}</em></div>`;
 }
 
 function albumSub(a,ids){

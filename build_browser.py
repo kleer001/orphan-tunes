@@ -81,7 +81,7 @@ def cell(track, key, kind):
     if kind == "bool":
         return 1 if v else 0
     if kind == "star" and track.get(key + " Computed"):
-        return -v                              # derived by iTunes, not set by hand
+        return v - 0.5                         # derived by iTunes, not set by hand
     return v
 
 
