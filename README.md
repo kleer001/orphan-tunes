@@ -9,58 +9,83 @@ local page to browse and play them in.
 
 ## Quick start
 
+Needs Python 3.11+ and ffmpeg. Nothing to install from pip.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
-# drop your library export in data/, set two paths in config.toml
+# copy your iTunes Music Library.xml into data/, then set the paths in config.toml
 python make_playlists.py && python build_browser.py && python serve.py
 ```
 
+`config.toml` wants four paths: the music folder your XML recorded, where that
+music lives now, and where to write the playlists and the page.
+
 ## Why
 
-Move your music to a new drive and every path in that XML goes stale, so the
-audio sits on disk while your playlists point at nothing. Often they're the only
-record of how you organised any of it.
+Move your music to a new drive and every path in the library XML that iTunes
+exports goes stale. The audio sits on disk while your playlists point at nothing.
+Often they're the only record of how you organised any of it.
 
-Most exporters do a prefix swap and call it done. This one also hunts by
-filename across your library, and settles ties by comparing file size against
-what iTunes recorded. On the one library it was built against, that took 95.9%
-up to 98.4%. Those 341 entries would otherwise have become dead links, quietly.
+Swapping the old music folder for the new one at the front of each path finds
+most files. Not the ones that moved to a different folder. So this one also
+looks each filename up across your whole library, and when several files share a
+name, it takes the one whose size matches what iTunes recorded. A tie it can't
+break counts as missing.
 
-What it can't find, it shows you. Greyed out, with the reason.
+On the one library it was built against, 13,418 playlist entries, the swap alone
+found 95.9%. The search took that to 98.4%. Those 341 entries would otherwise
+have become dead links, quietly.
+
+What it can't find, it shows you: greyed out, with the reason in a Found column
+you can switch on.
 
 ## What you get
 
-- **Plain `.m3u8` files.** Tested with VLC; any player that reads m3u8 should
-  take them. If that's all you wanted, stop after the first command.
-- **A browsable page.** The whole music library plus every playlist. Sort,
-  search, 29 library fields as columns, and a Genre | Artist | Album browser.
+- **Plain `.m3u8` playlist files.** Tested with VLC; any player that reads m3u8
+  should take them. If that's all you wanted, stop after `make_playlists.py`.
+- **A browsable page.** Your whole music library and hand-made playlists, with
+  sorting, search, 29 library fields as columns, and a column browser.
 - **Album and artist views**, iTunes 11 style, with covers taken from the
-  artwork embedded in your files (needs `ffmpeg`).
-- **Playback in the browser**, with Up Next, media keys and keyboard control, or
-  hand the current view to VLC in the order shown.
-- **Eight skins**, because why not.
+  artwork embedded in your files.
+- **Playback in the browser**, with Up Next, media keys and keyboard control. Or
+  send what's on screen to VLC, in the order shown.
+
+## Songs, albums, artists
+
+![Albums view: a grid of covers, with Moon Safari opened in place under its row](docs/albums.png)
+
+Click a cover and its tracks open under its row, tinted from the art.
+Double-click a track to play it.
+
+![Artists view: the artist list, and the chosen artist's albums with their tracks](docs/artists.png)
+
+Artists, grouped by Album Artist. Compilations all sit under one entry,
+Compilations, so each guest artist on one doesn't get an entry of their own.
+
+![The column browser: Genre, Artist and Album panes above the track list](docs/browser.png)
+
+Songs, with the Genre | Artist | Album browser on (Ctrl+B). Solid stars are
+ratings you set. Hollow ones are what iTunes worked out from the album's rating.
 
 ## Eight skins
 
 ![Cycling through Greenwood, Concrete, Chelan, Boring and Azalea](docs/skins.gif)
 
-Three iTunes eras, three Windows eras, one Hot Dog Stand, and one 2006 band
-profile. Pick from the gear in the corner.
+Three iTunes eras, three Windows eras, Windows 3.1's Hot Dog Stand colour
+scheme, and a 2006 MySpace band profile. Pick from the gear in the corner.
 
 They're named for real towns in British Columbia, Washington and Oregon, which
 is how a Windows 3.1 tribute ends up called Concrete. Boring is a real town too.
 It's next to Damascus.
 
-Every skin is built from colour values written from scratch. No Apple or
-Microsoft artwork, icons or fonts are copied or shipped.
+Every skin is built from colour values written from scratch.
 
 ## Status
 
-**0.1.0 alpha.** This has worked exactly once, on one large library, on Linux.
-There are 57 tests, but nobody has yet pointed it at a library other than the one
+**0.1.0 alpha.** It has only ever run against one large library, on Linux.
+There are 70 tests, but nobody has yet pointed it at a library other than the one
 it was written for. That's the whole body of evidence.
 
-If yours came off Windows, expect the path remapping to need a nudge. It's the
+If yours came off Windows, the path remapping is untested there, and it's the
 part most likely to break. Worth an issue if it does.
 
 ---
