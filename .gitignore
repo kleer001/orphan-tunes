@@ -33,3 +33,6 @@ index.html
 art/
 _now_playing.m3u8
 *.m3u8
+
+# Session notes, kept on this machine only.
+BREADCRUMB.md
