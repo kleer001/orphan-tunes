@@ -32,7 +32,7 @@ name, it takes the one whose size matches what iTunes recorded. A tie it can't
 break counts as missing.
 
 On the one library it was built against, 13,418 playlist entries, the swap alone
-found 95.9%. The search took that to 98.4%. Those 341 entries would otherwise
+found 96.8%. The search took that to 98.9%. Those 285 entries would otherwise
 have become dead links, quietly.
 
 What it can't find, it shows you: greyed out, with the reason in a Found column
@@ -82,7 +82,7 @@ Every skin is built from colour values written from scratch.
 ## Status
 
 **0.1.0 alpha.** It has only ever run against one large library, on Linux.
-There are 70 tests, but nobody has yet pointed it at a library other than the one
+There are 72 tests, but nobody has yet pointed it at a library other than the one
 it was written for. That's the whole body of evidence.
 
 If yours came off Windows, the path remapping is untested there, and it's the

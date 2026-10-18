@@ -4,8 +4,18 @@
 - XML: the library file iTunes exports, iTunes Music Library.xml
 - prefix: the music folder at the start of each recorded path
 - m3u8: the playlist file format
+- MDN: Mozilla's web docs, the reference for what browsers support
+- rmdir: the remove-directory call, which refuses a directory that holds anything
+- byte-range: sending only the part of a file the player asks for
 
 ## Decided - replace
+- CSS: styles
+- stylesheet: styles
+- endpoints: name /audio and /play
+- fallback: say what plays it instead
+- gitignored: listed in .gitignore
+- prev: previous
+- GET: drop the method, name the address
 
 ## Decided - fine as-is
 - artist
@@ -20,3 +30,26 @@
 - library
 - config
 - toml
+- album
+- play
+- track
+- AAC
+- AIFF
+- FLAC
+- MP3
+- WAV
+- README
+- URL
+- boring's
+- xml's
+- double-click
+- right-click
+- gitignore
+- found
+- playlists
+- tracks
+- PATH
+- SKINS
+- filesystem
+- localhost
+- mdn's
