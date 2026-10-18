@@ -81,7 +81,7 @@ Every skin is built from colour values written from scratch.
 
 ## Status
 
-**0.1.0 alpha.** It has only ever run against one large library, on Linux.
+**0.2.0 alpha.** It has only ever run against one large library, on Linux.
 There are 72 tests, but nobody has yet pointed it at a library other than the one
 it was written for. That's the whole body of evidence.
 
