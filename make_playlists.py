@@ -7,7 +7,7 @@ Write the iTunes playlists out as .m3u8 files pointing at the local audio.
 Reads only. Every track is located three ways, in order: the Location recorded
 by iTunes, then the same filename anywhere else in the library, then -- when a
 name like '01 Track 1.mp3' matches several albums -- the file whose byte size
-matches what iTunes recorded.
+matches what iTunes recorded. Accented names match in either Unicode spelling.
 
 Paths in the playlists are relative to the playlist file, so they keep working
 when the drive is mounted somewhere other than where it is today.
@@ -16,6 +16,7 @@ when the drive is mounted somewhere other than where it is today.
 import os
 import plistlib
 import sys
+import unicodedata
 import urllib.parse
 from collections import defaultdict
 
@@ -25,13 +26,20 @@ AUDIO = {".mp3", ".m4a", ".wav", ".mp4", ".aif", ".aiff",
          ".mpga", ".m4b", ".flac", ".ogg", ".mov", ".m4v"}
 
 
+def nfc(text):
+    """One spelling for accented text. The library XML spells é both as one
+    character and as e plus a combining accent, and Linux compares names byte
+    for byte."""
+    return unicodedata.normalize("NFC", text)
+
+
 def index_by_name(root):
-    """filename (lowercased) -> [full paths], for tracks that moved album."""
+    """filename (lowercased, NFC) -> [full paths], for tracks that moved album."""
     index = defaultdict(list)
     for dirpath, _, filenames in os.walk(root):
         for name in filenames:
             if os.path.splitext(name)[1].lower() in AUDIO:
-                index[name.lower()].append(os.path.join(dirpath, name))
+                index[nfc(name).lower()].append(os.path.join(dirpath, name))
     return index
 
 
@@ -42,7 +50,10 @@ def locate(track, index):
     if os.path.isfile(direct):
         return direct, "direct"
 
-    candidates = index.get(os.path.basename(direct).lower(), [])
+    candidates = index.get(nfc(os.path.basename(direct)).lower(), [])
+    same_place = [c for c in candidates if nfc(c) == nfc(direct)]
+    if same_place:
+        return same_place[0], "direct"
     if len(candidates) == 1:
         return candidates[0], "moved"
     if len(candidates) > 1:

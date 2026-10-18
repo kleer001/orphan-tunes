@@ -1,10 +1,40 @@
 """The generators are only useful if track resolution stays honest."""
 import os
+import unicodedata
+import urllib.parse
 
 import pytest
 
 import config
-from make_playlists import locate, safe_name
+import make_playlists
+from make_playlists import index_by_name, locate, safe_name
+
+
+def _track(recorded):
+    """A library entry whose Location spells its accents as e + combining mark."""
+    nfd = unicodedata.normalize("NFD", recorded)
+    return {"Location": "file://" + urllib.parse.quote(nfd)}
+
+
+@pytest.fixture
+def library(tmp_path, monkeypatch):
+    monkeypatch.setattr(make_playlists, "RECORDED_ROOT", "/Users/you/Music")
+    monkeypatch.setattr(make_playlists, "LOCAL_ROOT", str(tmp_path))
+    return tmp_path
+
+
+def test_locate_finds_an_accented_path_spelled_the_other_way(library):
+    (library / "Björk").mkdir()
+    (library / "Björk" / "Jóga.mp3").write_bytes(b"x")
+    path, how = locate(_track("/Users/you/Music/Björk/Jóga.mp3"), index_by_name(library))
+    assert (path, how) == (str(library / "Björk" / "Jóga.mp3"), "direct")
+
+
+def test_locate_finds_a_moved_accented_name_spelled_the_other_way(library):
+    (library / "Homogenic").mkdir()
+    (library / "Homogenic" / "Jóga.mp3").write_bytes(b"x")
+    path, how = locate(_track("/Users/you/Music/Björk/Jóga.mp3"), index_by_name(library))
+    assert (path, how) == (str(library / "Homogenic" / "Jóga.mp3"), "moved")
 
 
 def test_safe_name_strips_path_separators():
@@ -26,8 +56,6 @@ def test_safe_name_survives_a_title_that_is_all_punctuation():
                     reason="needs a library export in data/")
 def test_locate_returns_a_real_file_or_nothing():
     import plistlib
-
-    from make_playlists import index_by_name
 
     with open(config.LIBRARY, "rb") as fh:
         tracks = plistlib.load(fh)["Tracks"]

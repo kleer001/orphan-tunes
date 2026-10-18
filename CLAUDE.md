@@ -47,9 +47,11 @@ would, and does not invite tuning what should not be tuned.
 
 Three steps, in order, in `locate()`:
 
-1. Rewrite the XML's recorded path prefix to `local_root` and test it.
-2. Failing that, look the bare filename up across the library; accept a single
-   unambiguous hit.
+1. Rewrite the XML's recorded path prefix to `local_root` and test it. A file
+   at that path in the other Unicode spelling (NFC or NFD) also counts: the XML
+   holds both, and Linux compares names byte for byte.
+2. Failing that, look the bare filename up across the library, ignoring case and
+   Unicode spelling; accept a single unambiguous hit.
 3. Failing that, when several files share the name, take the one whose byte size
    matches the `Size` the library recorded.
 
