@@ -9,6 +9,8 @@ by iTunes, then the same filename anywhere else in the library, then -- when a
 name like '01 Track 1.mp3' matches several albums -- the file whose byte size
 matches what iTunes recorded. Accented names match in either Unicode spelling.
 
+Smart playlists are written as the track list iTunes saved at export.
+
 Paths in the playlists are relative to the playlist file, so they keep working
 when the drive is mounted somewhere other than where it is today.
 """
@@ -91,9 +93,10 @@ def main():
     index = index_by_name(LOCAL_ROOT)
     print(f"  {sum(len(v) for v in index.values())} files, {len(index)} distinct names\n")
 
+    # A smart playlist is written as the list iTunes saved when it exported.
     playlists = [p for p in lib["Playlists"]
-                 if "Smart Info" not in p and not p.get("Master")
-                 and not p.get("Distinguished Kind") and p.get("Playlist Items")]
+                 if not p.get("Master") and not p.get("Distinguished Kind")
+                 and p.get("Playlist Items")]
 
     taken, totals, written, skipped = set(), defaultdict(int), 0, []
     for playlist in playlists:

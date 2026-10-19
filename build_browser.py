@@ -22,6 +22,7 @@ from typing import NamedTuple
 
 from config import BROWSER_DIR, LIBRARY, LOCAL_ROOT
 from make_playlists import index_by_name, locate  # the .m3u8 writer's own
+from smart_rules import decode
 
 # The page's script and layout stylesheet, copied next to index.html at build time.
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -190,7 +191,7 @@ def group_albums(tracks, paths):
 
 
 def read_library():
-    """Every local track plus every regular playlist, resolved against the files
+    """Every local track plus every user playlist, resolved against the files
     actually on disk. Podcasts and films are in the pool, so smart playlist
     rules can match them, but not in the Library source."""
     with open(LIBRARY, "rb") as fh:
@@ -219,11 +220,12 @@ def read_library():
             intern(track)
 
     for playlist in lib["Playlists"]:
-        if "Smart Info" in playlist or playlist.get("Master") \
-                or playlist.get("Distinguished Kind") or not playlist.get("Playlist Items"):
+        smart = "Smart Info" in playlist
+        if playlist.get("Master") or playlist.get("Distinguished Kind") \
+                or not (smart or playlist.get("Playlist Items")):
             continue
         ids = []
-        for item in playlist["Playlist Items"]:
+        for item in playlist.get("Playlist Items", []):
             track = tracks.get(str(item["Track ID"]))
             if not track or not track.get("Location"):
                 continue
@@ -231,7 +233,15 @@ def read_library():
             if paths[row] is None:
                 missing += 1
             ids.append(row)
-        if ids:
+        if smart:
+            # The page shows the list iTunes saved; the rules come along so a
+            # copy can be made that re-runs them.
+            text, rules, why = decode(playlist["Smart Info"], playlist["Smart Criteria"])
+            if why:
+                print(f"  smart playlist {playlist['Name']!r} cannot be copied: {why}")
+            playlists.append({"name": playlist["Name"], "ids": ids,
+                              "smart": {"text": text, "rules": rules}})
+        elif ids:
             playlists.append({"name": playlist["Name"], "ids": ids})
 
     playlists.sort(key=lambda p: p["name"].lower())

@@ -129,10 +129,16 @@ class TestAgainstTheRealLibrary:
         missing = [p for p in library.paths if p and not os.path.isfile(p)]
         assert not missing, missing[:3]
 
-    def test_playlists_are_sorted_and_none_are_empty(self, library):
+    def test_playlists_are_sorted_and_only_smart_ones_are_empty(self, library):
+        """A smart playlist is kept empty: its rules can still be copied."""
         names = [p["name"].lower() for p in library.playlists]
         assert names == sorted(names)
-        assert all(p["ids"] for p in library.playlists)
+        assert all(p["ids"] or "smart" in p for p in library.playlists)
+
+    def test_smart_playlists_carry_their_saved_list_and_rules(self, library):
+        smart = [p for p in library.playlists if "smart" in p]
+        assert smart and all(p["smart"]["text"] for p in smart)
+        assert any(p["ids"] and p["smart"]["rules"] for p in smart)
 
     def test_every_id_indexes_into_the_pool(self, library):
         for playlist in library.playlists:
