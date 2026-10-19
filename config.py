@@ -22,3 +22,4 @@ RECORDED_ROOT = _cfg["music"]["recorded_root"]
 LOCAL_ROOT = _resolve(_cfg["music"]["local_root"])
 PLAYLIST_DIR = _resolve(_cfg["output"]["playlists"])
 BROWSER_DIR = _resolve(_cfg["output"]["browser"])
+STATE = _resolve(_cfg["state"])

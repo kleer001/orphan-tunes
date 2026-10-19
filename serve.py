@@ -15,6 +15,11 @@ Both take row numbers only; paths come from the server's own paths.json, so
 neither can be talked into opening a file that isn't in the library. Bound to
 127.0.0.1 only.
 
+GET /state returns what the page has recorded: plays, ratings and the smart
+playlists made on the page. POST /state takes one change at a time and writes
+the file config.toml names. Tracks are keyed by Persistent ID, so the record
+outlives a rebuild that renumbers the rows.
+
 Binding to a fixed port dies with 'Address already in use' the moment something
 is left over on it, so probe upward and report the port actually taken.
 """
@@ -22,15 +27,17 @@ import functools
 import http.server
 import json
 import os
+import re
 import shutil
 import signal
 import socket
 import socketserver
 import subprocess
 import sys
+import threading
 import urllib.parse
 
-from config import BROWSER_DIR
+from config import BROWSER_DIR, STATE
 
 # Where to start probing, and how far to go. Neither is configuration: the port
 # actually used is decided by what is already listening, so a stored preference
@@ -88,21 +95,111 @@ def parse_range(header, size):
     return start, end
 
 
+# The shapes POST /state accepts. A Persistent ID is 16 hex digits; a time is
+# the "YYYY-MM-DD HH:MM:SS" the page's date columns hold.
+PID = re.compile(r"[0-9A-F]{16}")
+WHEN = re.compile(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d")
+PLAYLIST_ID = re.compile(r"[a-z0-9]{1,32}")
+MAX_RATING = 100
+
+
+def empty_state():
+    return {"tracks": {}, "playlists": {}}
+
+
+def load_state(path):
+    if not os.path.isfile(path):
+        return empty_state()
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def save_state(path, state):
+    """Write through a temporary file and a rename, so a crash mid-write leaves
+    the last good file in place rather than half of a new one."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = path + ".tmp"
+    with open(temp, "w", encoding="utf-8") as fh:
+        json.dump(state, fh, ensure_ascii=False, indent=1)
+    os.replace(temp, path)
+
+
+def apply_change(state, change):
+    """Apply one change from the page to `state`. ValueError when the change
+    is not one of the four known shapes."""
+    kind = change.get("type")
+    if kind in ("play", "rate"):
+        pid = change.get("pid")
+        if not isinstance(pid, str) or not PID.fullmatch(pid):
+            raise ValueError("bad pid")
+        if kind == "play":
+            plays, played = change.get("plays"), change.get("played")
+            if type(plays) is not int or plays < 0 \
+                    or not isinstance(played, str) or not WHEN.fullmatch(played):
+                raise ValueError("expected plays and played")
+            values = {"plays": plays, "played": played}
+        else:
+            rating = change.get("rating")
+            if type(rating) is not int or not 0 <= rating <= MAX_RATING:
+                raise ValueError("expected a rating from 0 to 100")
+            values = {"rating": rating}
+        state["tracks"].setdefault(pid, {}).update(values)
+        return
+    if kind in ("save", "delete"):
+        pid = change.get("id")
+        if not isinstance(pid, str) or not PLAYLIST_ID.fullmatch(pid):
+            raise ValueError("bad playlist id")
+        if kind == "delete":
+            state["playlists"].pop(pid, None)
+            return
+        playlist = change.get("playlist")
+        if not isinstance(playlist, dict) or not isinstance(playlist.get("name"), str) \
+                or not isinstance(playlist.get("rules"), dict):
+            raise ValueError("expected a playlist with a name and rules")
+        state["playlists"][pid] = {"name": playlist["name"], "rules": playlist["rules"]}
+        return
+    raise ValueError("unknown change")
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     # 1.1 keeps the connection alive between range requests while seeking.
     protocol_version = "HTTP/1.1"
     paths = []
     out_dir = None
+    state_path = None
+    state = None
+    # One writer at a time: the server is threaded.
+    state_lock = threading.Lock()
 
     def do_POST(self):
-        if self.path.split("?")[0] == "/play":
+        route = self.path.split("?")[0]
+        if route == "/play":
             return self.play()
+        if route == "/state":
+            return self.change_state()
         return self.reply(404, {"error": "not found"})
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/audio":
+        route = self.path.split("?")[0]
+        if route == "/audio":
             return self.audio()
+        if route == "/state":
+            with self.state_lock:
+                return self.reply(200, self.state)
         return super().do_GET()
+
+    def change_state(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            change = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(change, dict):
+                raise ValueError("expected an object")
+            with self.state_lock:
+                apply_change(self.state, change)
+                save_state(self.state_path, self.state)
+        except ValueError as why:
+            return self.reply(400, {"error": str(why)})
+        return self.reply(200, {"ok": True})
 
     def track_path(self):
         """The file for ?i=<n>, or None. Row numbers only, never a path."""
@@ -218,6 +315,8 @@ def main():
     if os.path.isfile(paths_file):
         with open(paths_file, encoding="utf-8") as fh:
             Handler.paths = json.load(fh)
+    Handler.state_path = STATE
+    Handler.state = load_state(STATE)
 
     # VLC is launched and never waited on; let the kernel reap it so repeated
     # clicks don't pile up zombie processes.
@@ -235,6 +334,7 @@ def main():
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), handler) as srv:
         print(f"http://127.0.0.1:{port}/", flush=True)
         print(f"play endpoint knows {len(Handler.paths)} tracks", flush=True)
+        print(f"state file: {STATE}", flush=True)
         srv.serve_forever()
 
 

@@ -4,6 +4,10 @@
 # usually beside the iTunes Library.itl file.
 library = "data/iTunes Music Library.xml"
 
+# Plays, ratings and smart playlists that the page records through serve.py.
+# Keep it outside the browser folder, so a rebuild cannot lose it.
+state = "data/state.json"
+
 [music]
 # The folder the library XML recorded your music under. The XML's "Music Folder"
 # key holds it as a URL: drop the leading file:// and write each %20 as a space.

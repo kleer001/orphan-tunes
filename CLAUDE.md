@@ -24,7 +24,11 @@ Rebuilds playable playlists and a browsable iTunes-4-style page from an exported
   output directory; `art/art.json` caches every result so rebuilds are quick.
   Imports `locate` and `safe_name` rather than reimplementing them; if track
   resolution changes, it changes in one place.
-- `serve.py` — static server plus `POST /play`.
+- `serve.py` — static server plus `POST /play`, and `GET`/`POST /state`: the
+  plays, ratings and page-made smart playlists, kept in the `state` file that
+  `config.toml` names and keyed by track Persistent ID.
+- `smart_rules.py` — iTunes smart playlist rules (decoded by `itunessmart`) →
+  the flat all/any rule format the page evaluates and edits.
 - `tools/demangle.py` — standalone archive repair, unrelated to the browser. It
   takes its root as a required argument and never reads `config.toml`: this
   renames files, and a destructive tool that runs with no arguments is one
