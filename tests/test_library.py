@@ -31,7 +31,18 @@ def test_cell_converts_milliseconds_to_whole_seconds():
 
 def test_cell_renders_dates_so_they_sort_as_text():
     stamp = datetime.datetime(2018, 4, 21, 13, 5)
-    assert cell({"Play Date UTC": stamp}, "Play Date UTC", "date") == "2018-04-21"
+    assert cell({"Play Date UTC": stamp}, "Play Date UTC", "date") == "2018-04-21 13:05:00"
+
+
+def test_media_kind_comes_from_the_section_flags():
+    assert cell({}, "Media Kind", "text") == "Music"
+    assert cell({"Podcast": True}, "Media Kind", "text") == "Podcast"
+    assert cell({"Movie": True, "Has Video": True}, "Media Kind", "text") == "Movie"
+
+
+def test_a_track_is_checked_unless_itunes_marked_it_disabled():
+    assert cell({}, "Checked", "bool") == 1
+    assert cell({"Disabled": True}, "Checked", "bool") == 0
 
 
 def test_cell_gives_a_missing_value_the_right_empty_for_its_kind():
@@ -54,28 +65,30 @@ def test_cell_marks_a_computed_rating_half_a_point_low_so_the_page_can_draw_it_h
 
 
 def test_refs_counts_every_playlist_entry():
-    lib = Library(tracks=[], paths=[], missing=0, music=[], albums=[],
+    lib = Library(tracks=[], paths=[], pids=[], missing=0, music=[], albums=[], exported="",
                   playlists=[{"name": "a", "ids": [1, 2]}, {"name": "b", "ids": [3]}])
     assert lib.refs == 3
 
 
 def test_page_data_is_a_script_so_the_page_opens_from_disk(tmp_path):
     """Firefox blocks fetch() between file:// pages, which left the page blank."""
-    lib = Library(tracks=[["Song"]], paths=["/m/song.mp3"], missing=0, music=[], albums=[],
+    lib = Library(tracks=[["Song"]], paths=["/m/song.mp3"], pids=["A1"], missing=0, music=[],
+                  albums=[], exported="2020-02-09 22:28:50",
                   playlists=[{"name": "a", "ids": [0]}])
     write_data(lib, tmp_path, {})
     text = (tmp_path / "data.js").read_text(encoding="utf-8")
     assert text.startswith("const LIBRARY=") and text.endswith(";\n")
     data = json.loads(text[len("const LIBRARY="):-2])
     assert data["playlists"] == lib.playlists
+    assert data["pids"] == ["A1"] and data["exported"] == lib.exported
 
 
 def test_page_gets_a_quoted_relative_url_for_each_found_track(tmp_path):
     """Opened from disk the page plays these directly; an unquoted "#" or "%"
     in a filename would break the URL."""
     song = tmp_path / "music" / "51%sincere" / "Mix #1.mp3"
-    lib = Library(tracks=[["a"], ["b"]], paths=[str(song), None], missing=1,
-                  music=[], albums=[], playlists=[{"name": "a", "ids": [0, 1]}])
+    lib = Library(tracks=[["a"], ["b"]], paths=[str(song), None], pids=["A", "B"], missing=1,
+                  music=[], albums=[], exported="", playlists=[{"name": "a", "ids": [0, 1]}])
     out = tmp_path / "browser"
     out.mkdir()
     write_data(lib, out, {})
@@ -96,7 +109,16 @@ class TestAgainstTheRealLibrary:
     def test_paths_are_index_aligned_with_tracks(self, library):
         """The server maps a row number straight into paths; a skew would serve
         the wrong file."""
-        assert len(library.paths) == len(library.tracks)
+        assert len(library.paths) == len(library.tracks) == len(library.pids)
+
+    def test_persistent_ids_are_unique(self, library):
+        """Plays and ratings are stored against them."""
+        assert len(set(library.pids)) == len(library.pids)
+
+    def test_the_pool_holds_podcasts_but_the_library_source_does_not(self, library):
+        kind = [label for _, label, _, _ in FIELDS].index("Media Kind")
+        assert any(row[kind] == "Podcast" for row in library.tracks)
+        assert all(library.tracks[i][kind] == "Music" for i in library.music)
 
     def test_a_track_has_a_path_exactly_when_it_was_found(self, library):
         found = len(FIELDS)                     # the derived column sits last
@@ -146,6 +168,7 @@ def test_only_local_music_files_are_library_tracks():
     assert not is_music({"Location": "http://stream.example/a"})
     assert not is_music({"Location": "file:///m/a.mp3", "Podcast": True})
     assert not is_music({"Location": "file:///m/a.mov", "Movie": True})
+    assert not is_music({"Location": "file:///m/a.mp4", "TV Show": True})
 
 
 def test_albums_sort_by_artist_then_title_and_tracks_by_disc_then_number():

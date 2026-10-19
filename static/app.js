@@ -47,6 +47,7 @@ function fmt(v,kind,gone){
     case "kbps":return v+" kbps";
     case "khz":return (v/1000).toFixed(1)+" kHz";
     case "bool":return v?"Yes":"";
+    case "date":return v.slice(0,10);     // the time of day is kept for sorting only
     case "found":return v==="direct"?""
       :`<span class="found-${v.replace(/ /g,"-")}">${esc(v)}</span>`;
     default:return esc(String(v));
