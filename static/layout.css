@@ -261,3 +261,27 @@ div.cover svg{width:38%;height:38%;fill:#9aa0aa}
   color:#666}
 #upnext h4{display:flex;justify-content:space-between}
 #upnext .none{padding:4px 12px;color:#888}
+
+/* ---- Smart playlists: the rules bar and the editor ----------------------- */
+.srchead{position:relative}
+.newsmart{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:15px;height:13px;
+  font:700 11px/1 var(--font);color:var(--btn-ink)}
+.rulebar{flex:none;display:none;align-items:center;gap:8px;padding:3px 8px;font-size:10px;
+  color:var(--head-ink);border-bottom:1px solid var(--head-div);background:var(--head-a)}
+.rulebar.on{display:flex}
+.rulebar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rulebar button,#smartEd button{font:11px var(--font);padding:1px 10px;cursor:pointer}
+#smartEd{min-width:560px;max-width:calc(100vw - 32px)}
+#smartEd .ed{padding:4px 12px}
+#smartEd .edline{display:flex;align-items:center;gap:6px;padding:3px 0;flex-wrap:wrap}
+#smartEd label{padding:0}
+#smartEd label:hover{background:none;color:inherit}
+#smartEd input:not([type=checkbox]),#smartEd select{font:11px var(--font)}
+#smartEd input[type=number]{width:6em}
+#smartEd .edname{flex:1}
+#smartEd .edrule input:not([type=number]):not([type=date]){flex:1;min-width:8em}
+#smartEd .hint{opacity:.6}
+#smartEd .edbtns{display:flex;gap:8px;justify-content:flex-end;align-items:center;
+  border-top:1px solid #d6d6d6;margin-top:6px;padding-top:8px}
+#smartEd .ederr{flex:1;color:#a00}
+#smartEd .edrule [data-act=del]{margin-left:auto}

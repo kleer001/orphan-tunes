@@ -906,7 +906,8 @@ def write_page(out_dir, n_playlists, n_refs):
   <audio id="audio" preload="none"></audio>
   <div class="body">
     <div class="source">
-      <div class="srchead">Source</div>
+      <div class="srchead">Source<button class="sbtn newsmart" id="newSmart"
+        title="New Smart Playlist">+</button></div>
       <div class="srclist" id="srclist"></div>
     </div>
     <div class="tracks">
@@ -920,6 +921,7 @@ def write_page(out_dir, n_playlists, n_refs):
             0v8h2.4V2zm3.4 0v8H11V2z"/></svg>
         </button>
       </div>
+      <div class="rulebar" id="rulebar"></div>
       <div class="view" id="vsongs">
         <div class="browser" id="browser">
           <div class="pane"><h5>Genre</h5><div class="plist" id="pgenre"></div></div>
@@ -973,12 +975,14 @@ def write_page(out_dir, n_playlists, n_refs):
 <div class="panel" id="prefs"></div>
 <div class="panel menu" id="ctx"></div>
 <div class="panel" id="upnext"></div>
+<div class="panel" id="smartEd"></div>
 <script>
 const NOTE="{NOTE_SVG}";
 const SKINS={skins_json};
 const REPEAT={repeat_json};
 </script>
 <script src="data.js"></script>
+<script src="smart.js"></script>
 <script src="app.js"></script>
 </body></html>"""
     path = os.path.join(out_dir, "index.html")
@@ -987,7 +991,8 @@ const REPEAT={repeat_json};
     # The skins are generated from Python data; the layout is a plain file.
     with open(os.path.join(out_dir, "style.css"), "w", encoding="utf-8") as fh:
         fh.write(render_skins() + "\n" + read_static("layout.css"))
-    shutil.copyfile(os.path.join(STATIC, "app.js"), os.path.join(out_dir, "app.js"))
+    for name in ("smart.js", "app.js"):
+        shutil.copyfile(os.path.join(STATIC, name), os.path.join(out_dir, name))
     print(f"  index.html {os.path.getsize(path) / 1024:.0f} KB "
           f"({n_playlists} playlists, {n_refs} refs)")
 

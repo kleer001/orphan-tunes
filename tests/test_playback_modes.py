@@ -81,3 +81,21 @@ def test_recorded_values_are_keyed_by_persistent_id_not_row_number():
     """A rebuild renumbers rows; a Persistent ID stays with its track."""
     assert "pid:DATA.pids[i]" in JS
     assert "new Map(DATA.pids.map((p,i)=>[p,i]))" in JS
+
+
+def test_an_itunes_smart_playlist_is_copied_never_edited():
+    """Its saved list and its .m3u8 stay as iTunes left them; only a copy runs."""
+    menu = JS[JS.index('$("#srclist").oncontextmenu'):JS.index('$("#newSmart").onclick')]
+    assert "p?.smart?.rules?" in menu and "Duplicate as Smart Playlist" in menu
+    edit = menu.index('data-m="edit"')
+    assert menu.rfind("p?.user?", 0, edit) > menu.rfind("p?.smart", 0, edit)
+
+
+def test_a_new_playlist_id_is_one_the_server_accepts():
+    from serve import PLAYLIST_ID
+    assert "Date.now().toString(36)" in JS
+    digits, n, out = "0123456789abcdefghijklmnopqrstuvwxyz", 1760915000000, ""
+    while n:
+        n, d = divmod(n, 36)
+        out = digits[d] + out
+    assert PLAYLIST_ID.fullmatch(out)      # what toString(36) gives for a time in 2025

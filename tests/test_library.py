@@ -210,3 +210,10 @@ def test_covers_are_extracted_once_and_then_read_from_the_cache(tmp_path, monkey
         raise AssertionError("ran ffmpeg for a cover already in the cache")
     monkeypatch.setattr(build_browser, "extract_cover", refuse)
     assert extract_art(albums, tmp_path) == art
+
+
+def test_the_page_loads_the_evaluator_before_the_page_script(tmp_path):
+    build_browser.write_page(tmp_path, 0, 0)
+    html = (tmp_path / "index.html").read_text(encoding="utf-8")
+    assert html.index('src="smart.js"') < html.index('src="app.js"')
+    assert (tmp_path / "smart.js").read_text() == build_browser.read_static("smart.js")

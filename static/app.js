@@ -81,17 +81,227 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&qu
 const byText=(a,b)=>a.localeCompare(b,undefined,{sensitivity:"base",numeric:true});
 const byRank=(a,b)=>ARTIST_RANK.get(a)-ARTIST_RANK.get(b);
 
-const sourceIds=()=>cur===LIB?DATA.music:DATA.playlists[cur].ids;
+const sourceIds=()=>cur===LIB?DATA.music:idsOf(DATA.playlists[cur]);
 const sourceName=()=>cur===LIB?"Library":DATA.playlists[cur].name;
 const albumOf=i=>DATA.albums[ALBUM_OF[i]];
+const colOf=label=>FIELDS.findIndex(f=>f[0]===label);
+
+/* A playlist is one of three kinds. A plain one has `ids`. One of iTunes' smart
+   playlists has `ids` as iTunes saved them, and `smart` with its rules; it is
+   never edited, only copied. One made here has `user` (its id in the state
+   file) and `rules`, and its ids come from running the rules. */
+const GEAR_ICON='<svg width="10" height="10" viewBox="0 0 16 16" fill="#7a5aa5"><path d="M8 5.2A2.8'+
+  ' 2.8 0 1 0 8 10.8 2.8 2.8 0 0 0 8 5.2zM14 8.9v-1.8l-1.6-.3a4.6 4.6 0 0 0-.5-1.2l.9-1.3-1.3-1.3'+
+  '-1.3.9a4.6 4.6 0 0 0-1.2-.5L8.9 2H7.1l-.3 1.6a4.6 4.6 0 0 0-1.2.5l-1.3-.9-1.3 1.3.9 1.3a4.6 4.6'+
+  ' 0 0 0-.5 1.2L2 7.1v1.8l1.6.3c.1.4.3.8.5 1.2l-.9 1.3 1.3 1.3 1.3-.9c.4.2.8.4 1.2.5l.3 1.6h1.8l.3'+
+  '-1.6c.4-.1.8-.3 1.2-.5l1.3.9 1.3-1.3-.9-1.3c.2-.4.4-.8.5-1.2L14 8.9z"/></svg>';
+const rulesOf=p=>p.user?p.rules:p.smart?.rules;
+// Bumped whenever a play, a rating or an edit can change what a rule picks.
+let ver=0, ALL=[];
+function idsOf(p){
+  if(p.user&&p.ver!==ver){
+    p.ids=Smart.evaluate(p.rules,DATA.tracks,FIELDS,ALL,{seed:p.seed}); p.ver=ver;
+  }
+  return p.ids;
+}
 
 function drawSources(){
   $("#srclist").innerHTML=
     `<div class="src lib${cur===LIB?" on":""}" data-i="${LIB}">${NOTE}<span>Library</span></div>`+
-    DATA.playlists.map((p,i)=>
-      `<div class="src${i===cur?" on":""}" data-i="${i}">${NOTE}<span>${esc(p.name)}</span></div>`
-    ).join("");
+    DATA.playlists.map((p,i)=>`<div class="src${i===cur?" on":""}" data-i="${i}">`+
+      `${p.smart||p.user?GEAR_ICON:NOTE}<span>${esc(p.name)}</span></div>`).join("");
 }
+
+function selectSource(i){
+  cur=i; sel=-1; $("#search").value="";
+  browse={genre:null,artist:null,album:null}; openAlbum=-1;
+  drawSources(); draw();
+  for(const id of ["#scroll","#grid","#alist","#adetail"])$(id).scrollTop=0;
+}
+
+// The same order the build gives the playlists, kept on the one being shown.
+function sortLists(){
+  const shown=DATA.playlists[cur];
+  const key=p=>p.name.toLowerCase();
+  DATA.playlists.sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
+  if(shown)cur=DATA.playlists.indexOf(shown);
+}
+
+function addUser(id,pl){
+  const p={name:pl.name,rules:pl.rules,user:id,ids:[],ver:-1,
+    seed:Math.floor(Math.random()*2**31)};      // "random" holds still until reloaded
+  DATA.playlists.push(p);
+  return p;
+}
+
+/* ---- The rules, in words ------------------------------------------------------ */
+
+const HINT={star:"stars",size:"MB",time:"seconds",kbps:"kbps",khz:"Hz"};
+function ruleText(x){
+  const kind=FIELDS[colOf(x.field)][1], fam=Smart.family(kind), v=x.value;
+  const val=x.op==="in range"?`${v[0]} to ${v[1]}`:typeof v==="object"?`${v.n} ${v.unit}`
+    :fam==="text"?`"${v}"`:fam==="number"&&HINT[kind]?`${v} ${HINT[kind]}`:String(v);
+  return `${x.field} ${x.op} ${val}`;
+}
+
+function describe(r){
+  let s=r.rules.length?r.rules.map(ruleText).join(r.match==="all"?" and ":" or "):"Every track";
+  if(r.limit)s+=`, limited to ${r.limit.count} ${r.limit.unit} by ${r.limit.by}`;
+  if(r.checkedOnly)s+=", checked songs only";
+  return s;
+}
+
+function paintRules(){
+  const p=cur===LIB?null:DATA.playlists[cur], bar=$("#rulebar");
+  bar.classList.toggle("on",!!(p&&(p.smart||p.user)));
+  if(!p||!(p.smart||p.user))return;
+  const rules=rulesOf(p);
+  const text=p.user?describe(rules)
+    :`As iTunes saved it on ${DATA.exported.slice(0,10)}. `
+      +(rules?describe(rules):p.smart.text.replace(/\s+/g," "));
+  const act=!SERVED?"":p.user?'<button data-act="edit">Edit…</button>'
+    :rules?'<button data-act="dup">Duplicate…</button>':"";
+  bar.innerHTML=`<span title="${esc(p.smart?p.smart.text:text)}">${esc(text)}</span>${act}`;
+}
+
+/* ---- The rule editor ------------------------------------------------------------- */
+
+// What is being edited: the user id (null for a new playlist), name and rules.
+let draft=null;
+const opt=(values,on)=>values.map(v=>
+  `<option value="${esc(String(v))}"${String(v)===String(on)?" selected":""}>${esc(String(v))}</option>`)
+  .join("");
+const familyOf=label=>Smart.family(FIELDS[colOf(label)][1]);
+const shapeOf=op=>op==="in range"?"pair":op.endsWith("in the last")?"span":"one";
+
+function defaultValue(x){
+  const fam=familyOf(x.field), shape=shapeOf(x.op);
+  if(shape==="pair")return [0,0];
+  if(shape==="span")return {n:1,unit:"months"};
+  if(fam==="date")return new Date().toISOString().slice(0,10);
+  return fam==="number"?0:fam==="bool"?true:"";
+}
+
+function valueHtml(x,kind){
+  const fam=Smart.family(kind), v=x.value, num=(k,n)=>`<input type="number" data-k="${k}" value="${n}">`;
+  if(shapeOf(x.op)==="pair")return num("v0",v[0])+" to "+num("v1",v[1]);
+  if(shapeOf(x.op)==="span")return num("n",v.n)+`<select data-k="span">${opt(Object.keys(Smart.SPAN),v.unit)}</select>`;
+  if(fam==="date")return `<input type="date" data-k="v" value="${esc(v)}">`;
+  if(fam==="bool")return `<select data-k="v">${opt([true,false],v)}</select>`;
+  if(fam==="number")return num("v",v)+`<span class="hint">${HINT[kind]||""}</span>`;
+  return `<input data-k="v" value="${esc(v)}">`;
+}
+
+function drawEditor(){
+  const r=draft.rules, lim=r.limit;
+  const fields=FIELDS.slice(0,FOUND).map(f=>f[0]);
+  $("#smartEd").innerHTML=`<h4>${draft.id?"Edit":"New"} Smart Playlist</h4><div class="ed">`+
+    `<div class="edline">Name <input class="edname" data-k="name" value="${esc(draft.name)}"></div>`+
+    `<div class="edline">Match <select data-k="match">${opt(["all","any"],r.match)}</select>`+
+    ` of these rules:</div>`+
+    r.rules.map((x,n)=>{
+      const kind=FIELDS[colOf(x.field)][1];
+      return `<div class="edline edrule" data-n="${n}">`+
+        `<select data-k="field">${opt(fields,x.field)}</select>`+
+        `<select data-k="op">${opt(Smart.OPS[Smart.family(kind)],x.op)}</select>`+
+        valueHtml(x,kind)+`<button data-act="del" title="Remove this rule">−</button></div>`;
+    }).join("")+
+    `<div class="edline"><button data-act="add">+ Add Rule</button></div>`+
+    `<div class="edline"><label><input type="checkbox" data-k="limit"${lim?" checked":""}>`+
+    ` Limit to</label>`+(lim?`<input type="number" data-k="lcount" value="${lim.count}">`+
+      `<select data-k="lunit">${opt(Smart.UNITS,lim.unit)}</select> selected by `+
+      `<select data-k="lby">${opt(Smart.BY,lim.by)}</select>`:"")+`</div>`+
+    `<div class="edline"><label><input type="checkbox" data-k="checked"`+
+    `${r.checkedOnly?" checked":""}> Match only checked songs</label></div>`+
+    `<div class="edbtns"><span class="ederr" id="edErr"></span>`+
+    `<button data-act="cancel">Cancel</button><button data-act="ok">OK</button></div></div>`;
+}
+
+function openEditor(id,name,rules){
+  draft={id,name,rules:structuredClone(rules)};
+  drawEditor();
+  const p=$("#smartEd");
+  p.classList.add("open");                 // measured open, so its size is known
+  openPanel(p,(innerWidth-p.offsetWidth)/2,(innerHeight-p.offsetHeight)/3);
+  p.querySelector(".edname").focus();
+}
+
+function onEdit(e){
+  const el=e.target, k=el.dataset.k;
+  if(!k||!draft)return;
+  const r=draft.rules, row=el.closest(".edrule"), x=row?r.rules[+row.dataset.n]:null;
+  const val=el.type==="checkbox"?el.checked:el.value;
+  switch(k){
+    case "name":draft.name=val; return;
+    case "match":r.match=val; return;
+    case "field":
+      x.field=val; x.op=Smart.OPS[familyOf(val)][0]; x.value=defaultValue(x); break;
+    case "op":{
+      const before=shapeOf(x.op);
+      x.op=val;
+      if(shapeOf(val)!==before)x.value=defaultValue(x);
+      break;
+    }
+    case "v":
+      x.value=familyOf(x.field)==="number"?Number(val):familyOf(x.field)==="bool"?val==="true":val;
+      return;
+    case "v0":x.value[0]=Number(val); return;
+    case "v1":x.value[1]=Number(val); return;
+    case "n":x.value.n=Number(val); return;
+    case "span":x.value.unit=val; return;
+    case "limit":r.limit=val?{count:25,unit:"items",by:"random"}:null; break;
+    case "lcount":r.limit.count=Number(val); return;
+    case "lunit":r.limit.unit=val; return;
+    case "lby":r.limit.by=val; return;
+    case "checked":r.checkedOnly=val; return;
+  }
+  drawEditor();          // only a change of shape redraws, so typing keeps its focus
+}
+
+// What is wrong with the draft, or "" when it can be saved.
+function problem(){
+  if(!draft.name.trim())return "Give the playlist a name.";
+  const whole=n=>Number.isInteger(n)&&n>0;
+  for(const x of draft.rules.rules){
+    const v=x.value, shape=shapeOf(x.op), fam=familyOf(x.field);
+    if(shape==="pair"&&!(isFinite(v[0])&&isFinite(v[1])))return `${x.field}: give both ends.`;
+    if(shape==="span"&&!whole(v.n))return `${x.field}: give a whole number.`;
+    if(shape==="one"&&fam==="number"&&!isFinite(v))return `${x.field}: give a number.`;
+    if(shape==="one"&&fam==="date"&&!/^\d{4}-\d\d-\d\d$/.test(v))return `${x.field}: give a date.`;
+  }
+  if(draft.rules.limit&&!whole(draft.rules.limit.count))return "Give the limit as a whole number.";
+  return "";
+}
+
+function saveDraft(){
+  const why=problem();
+  if(why){$("#edErr").textContent=why; return;}
+  const id=draft.id||Date.now().toString(36);
+  const pl={name:draft.name.trim(),rules:draft.rules};
+  STATE.playlists[id]=pl;
+  send({type:"save",id,playlist:pl});
+  let p=DATA.playlists.find(q=>q.user===id);
+  if(p){p.name=pl.name; p.rules=pl.rules;}
+  else p=addUser(id,pl);
+  draft=null; closePanels();
+  sortLists(); ver++; lcdFor=null; selectSource(DATA.playlists.indexOf(p));
+}
+
+function duplicate(p){
+  openEditor(null,p.name+" (copy)",rulesOf(p));
+}
+
+function removeList(p){
+  if(!confirm(`Delete the smart playlist "${p.name}"?`))return;
+  delete STATE.playlists[p.user];
+  send({type:"delete",id:p.user});
+  const shown=DATA.playlists[cur];
+  DATA.playlists.splice(DATA.playlists.indexOf(p),1);
+  selectSource(shown===p?LIB:DATA.playlists.indexOf(shown));
+}
+
+const NEW_RULES={match:"all",rules:[{field:"Artist",op:"contains",value:""}],
+  limit:null,checkedOnly:false};
 
 function searched(){
   const q=$("#search").value.trim().toLowerCase();
@@ -161,7 +371,7 @@ function draw(){
     : "no songs";
   $("#count").textContent=rows.length===total?songs(total):`${rows.length} of ${total}`;
   $("#play").disabled=!here.length;   // nothing playable, even if rows show
-  paintLcd();
+  paintLcd(); paintRules();
 }
 
 /* ---- Songs: the column browser and the track table ----------------------- */
@@ -606,7 +816,7 @@ function recordPlay(i){
   const t=DATA.tracks[i];
   t[PLAYS]+=1; t[PLAYED]=new Date().toISOString().slice(0,19).replace("T"," ");
   send({type:"play",pid:DATA.pids[i],plays:t[PLAYS],played:t[PLAYED]});
-  draw();
+  changed();
 }
 
 // A rating set here is the track's own, so a hollow (album-derived) one turns
@@ -616,8 +826,10 @@ function rate(i,n){
   const t=DATA.tracks[i], v=n*PER_STAR===t[RATING]?0:n*PER_STAR;
   t[RATING]=v;
   send({type:"rate",pid:DATA.pids[i],rating:v});
-  draw();
+  changed();
 }
+
+function changed(){ ver++; lcdFor=null; draw(); }
 
 /* ---- Up Next and the context menu ------------------------------------------ */
 
@@ -714,6 +926,10 @@ function boot(){
   RATING=FIELDS.findIndex(f=>f[0]==="Rating");
   PLAYS=FIELDS.findIndex(f=>f[0]==="Plays"); PLAYED=FIELDS.findIndex(f=>f[0]==="Last Played");
   applyState();
+  ALL=DATA.tracks.map((_,i)=>i);
+  for(const [id,pl] of Object.entries(STATE.playlists))addUser(id,pl);
+  sortLists();
+  $("#newSmart").hidden=!SERVED;
   ALBUM_OF=new Int32Array(DATA.tracks.length);
   DATA.albums.forEach((al,a)=>{
     for(const i of al[A_IDS])ALBUM_OF[i]=a;
@@ -722,11 +938,31 @@ function boot(){
   applySkin(skinName()); buildPrefs(); loadModes(); paintModes(); loadView(); paintView();
   drawSources();buildOptions();paintUpNext();draw();paint();
 
-  $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(!el)return;
-    cur=+el.dataset.i;sel=-1;$("#search").value="";
-    browse={genre:null,artist:null,album:null}; openAlbum=-1;
-    drawSources();draw();
-    for(const id of ["#scroll","#grid","#alist","#adetail"])$(id).scrollTop=0;};
+  $("#srclist").onclick=e=>{const el=e.target.closest(".src");if(el)selectSource(+el.dataset.i);};
+  $("#srclist").oncontextmenu=e=>{
+    e.preventDefault();
+    if(!SERVED)return;
+    const el=e.target.closest(".src"), i=el?+el.dataset.i:LIB;
+    const p=i===LIB?null:DATA.playlists[i];
+    menu={ids:[],first:undefined,list:[],src:p};
+    $("#ctx").innerHTML='<div class="mi" data-m="new">New Smart Playlist…</div>'+
+      (p?.smart?.rules?'<div class="mi" data-m="dup">Duplicate as Smart Playlist…</div>':"")+
+      (p?.user?'<div class="mi" data-m="edit">Edit Smart Playlist…</div>'+
+        '<div class="mi" data-m="dup">Duplicate…</div><div class="mi" data-m="del">Delete</div>':"");
+    openPanel($("#ctx"),e.clientX,e.clientY);
+  };
+  $("#newSmart").onclick=()=>openEditor(null,"untitled playlist",NEW_RULES);
+  $("#rulebar").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+    const p=DATA.playlists[cur];
+    if(b.dataset.act==="edit")openEditor(p.user,p.name,p.rules); else duplicate(p);};
+  for(const ev of ["input","change"])$("#smartEd").addEventListener(ev,onEdit);
+  $("#smartEd").onclick=e=>{const b=e.target.closest("button[data-act]");if(!b)return;
+    const r=draft.rules, act=b.dataset.act;
+    if(act==="ok")return saveDraft();
+    if(act==="cancel"){draft=null; closePanels(); return;}
+    if(act==="add")r.rules.push({field:"Artist",op:"contains",value:""});
+    if(act==="del")r.rules.splice(+b.closest(".edrule").dataset.n,1);
+    drawEditor();};
   $("#views").onclick=e=>{const b=e.target.closest("button");if(b)setView(b.dataset.v);};
   $("#browse").onclick=toggleBrowser;
   $("#browser").onclick=e=>{const p=e.target.closest(".pi");if(!p)return;
@@ -782,7 +1018,12 @@ function boot(){
       return;
     }
     closePanels();
-    if(m.dataset.m==="play")play(menu.first,menu.list);
+    const src=menu.src, act=m.dataset.m;
+    if(act==="new")openEditor(null,"untitled playlist",NEW_RULES);
+    else if(act==="dup")duplicate(src);
+    else if(act==="edit")openEditor(src.user,src.name,src.rules);
+    else if(act==="del")removeList(src);
+    else if(act==="play")play(menu.first,menu.list);
     else enqueue(menu.ids,m.dataset.m==="next");};
   $("#upnextBtn").onclick=()=>{
     const p=$("#upnext");
@@ -876,6 +1117,7 @@ function boot(){
   };
   document.addEventListener("mousedown",e=>{
     if(e.target.closest(".panel,#thead,#gear,#upnextBtn"))return;
+    if($("#smartEd").classList.contains("open"))return;   // only Cancel or Esc lose a draft
     closePanels();
   });
 }

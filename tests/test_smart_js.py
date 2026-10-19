@@ -226,3 +226,20 @@ def test_a_tied_limit_agrees_up_to_the_tie(oracle, library, name):
 def test_clear_menser(oracle):
     saved, mine, _ = oracle["Clear Menser"]
     assert sorted(mine) == sorted(saved)
+
+
+VALUE = {"pair": [1, 2], "span": {"n": 1, "unit": "days"}}
+SAMPLE = {"text": "a", "number": 1, "date": "2020-01-01", "bool": True}
+
+
+def test_every_operator_the_editor_offers_is_one_the_evaluator_knows():
+    """The editor builds its menus from Smart.OPS; an operator with no test
+    behind it would throw the first time a playlist used it."""
+    ops = json.loads(subprocess.run(
+        [NODE, "-e", "console.log(JSON.stringify(require(process.argv[1]).OPS))", SMART],
+        capture_output=True, text=True, check=True).stdout)
+    field = {"text": "Artist", "number": "Plays", "date": "Last Played", "bool": "Compilation"}
+    for family, names in ops.items():
+        for op in names:
+            shape = "pair" if op == "in range" else "span" if op.endswith("in the last") else ""
+            pick([track()], (field[family], op, VALUE.get(shape, SAMPLE[family])))
