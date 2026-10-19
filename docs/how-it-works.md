@@ -10,6 +10,7 @@ settings are constants in the code. ffmpeg and VLC are found on your `PATH`.
 
 ```toml
 library = "data/iTunes Music Library.xml"   # the file iTunes exported
+state   = "data/state.json"                 # plays, ratings, smart playlists
 
 [music]
 recorded_root = "/Users/you/Music/iTunes/iTunes Media"   # where the XML says it was
@@ -26,7 +27,8 @@ Drop the `file://` at the front and the `/` at the end, and decode the
 `config.toml` is in, wherever you run from.
 
 `data/` is in `.gitignore`, because a library export is personal listening
-history.
+history. So is the state file, which keeps the plays and ratings the page
+records. It sits outside the browser folder, so a rebuild can't touch it.
 
 ## Finding your tracks
 
@@ -47,7 +49,8 @@ Step 2 trusts a lone match without checking its size. A track that fails all
 three isn't found. So is one where several same-named files match the size, or
 none do, and one with no file recorded at all.
 
-On the one library this has run against, 174 playlists and 13,418 entries:
+On the one library this has run against, 174 hand-made playlists and 13,418
+entries:
 
 | Entries | How they were found |
 | --- | --- |
@@ -67,8 +70,9 @@ swap alone would have lost.
 - Each entry is a path relative to the playlists folder.
 - Tracks that weren't found are left out. A playlist with none found isn't
   written, and the run prints its name.
-- Smart playlists (the ones iTunes fills from rules), built-in lists like
-  Podcasts, and empty playlists are skipped.
+- A smart playlist (one iTunes fills from rules) is written as the list iTunes
+  saved at export. Built-in lists like Podcasts, and empty playlists, are
+  skipped.
 - Characters a filesystem refuses, like `/` and `:`, become `_` in the filename.
   Two playlists with one name get ` (2)`, ` (3)` and so on.
 
@@ -86,7 +90,7 @@ already read. To pick up changed artwork, delete `art/`.
 The page has three views.
 
 **Songs** is the track table. Sort by any column, or search by song, artist or
-album. Right-click the column headers for View Options: 29 library fields, plus
+album. Right-click the column headers for View Options: 31 library fields, plus
 the `Found` column this tool adds. Ctrl+B (⌘B on a Mac) puts a column browser on
 top, with Genre, Artist and Album panes.
 
@@ -102,7 +106,9 @@ Pick an artist to see their albums and tracks.
 Ratings show as stars, from iTunes' 0 to 100 at 20 a star. Rate an album and not
 its tracks, and iTunes gives each track the album's rating, flagged
 `Rating Computed` in the XML. The page draws those stars hollow. Solid ones are
-yours. They sort just below hand-set ratings of the same count.
+yours. They sort just below hand-set ratings of the same count. Click a star in
+the Rating column, or use Rating in a track's right-click menu, to set your own.
+Click the star that's already set to clear it.
 
 - Right-click a track, album or artist for Play, Play Next and Add to Up Next.
   Up Next plays ahead of the list you started from.
@@ -121,6 +127,54 @@ yours. They sort just below hand-set ratings of the same count.
 | Ctrl+B | column browser |
 | Esc | close a menu, or the open album |
 | letters | jump ahead: by song name or the sorted column in Songs, artist in Artists, album title in Albums |
+
+## Smart playlists
+
+iTunes stores a smart playlist's rules as two binary blobs, `Smart Info` and
+`Smart Criteria`. The `itunessmart` package decodes them. `smart_rules.py` turns
+the result into one flat set of rules: match all or any, each rule a field, an
+operator and a value, plus a limit and "only checked songs".
+
+Each of your iTunes smart playlists shows with a gear icon, and holds the list
+iTunes saved at export. Its rules show in a bar above the tracks. It's never changed.
+
+**Duplicate** opens a copy in the rule editor. A copy, or a new one from the
+**+** at the top of the source list, runs its rules again whenever a play, a
+rating or an edit could change the result. `static/smart.js` runs them in the
+page. A copy always updates live, even where iTunes had live updating off.
+
+A rule set that mixes all and any in nested groups doesn't fit the flat editor.
+Nor does one with a field the page has no column for. That playlist still shows
+its saved list, but has no Duplicate, and the build prints its name.
+
+Comparing the rules with the lists iTunes saved turned up three details:
+
+- A rating iTunes worked out from the album counts only when the album's rating
+  was set by hand.
+- A size limit stops at the first track that doesn't fit. The page treats a
+  time limit the same way.
+- `itunessmart` 1.2.0 reads "most" and "least" backwards for the played, often
+  and added orders. `smart_rules.py` turns them round, so the version is pinned.
+
+On the tested library, with "now" set to the export date, the rules give back 9
+of the 15 saved lists track for track. Four more tie many tracks at the limit's
+cut, like 216 never-played tracks for 90 places, and which ones iTunes took is
+unknown. One picks at random. The last is 12 tracks over, at 3,413: iTunes left
+out one track in the Audiobook genre and 11 with no album name. Nothing in the
+XML says why.
+
+## What the page records
+
+Served by `serve.py`, the page sends each play and rating, and each smart
+playlist you save or delete, to `POST /state`. The server writes them to the
+`state` file, and `GET /state` hands them back when the page loads.
+
+- A play counts when a track reaches its end, as iTunes counted it. A skip
+  isn't a play.
+- Tracks are kept by their Persistent ID from the XML, so the record survives a
+  rebuild that renumbers the rows.
+- Each write goes to a temporary file first, then replaces the old one whole.
+- Opened from disk, the page records nothing, and the editor is off.
 
 ## Playback
 
@@ -190,3 +244,7 @@ refusals, and that one problem stops the whole run.
 - A Windows export writes paths like `file://localhost/C:/...`. The path swap
   has never been tried on one.
 - Tracks whose files are gone stay gone: counted and shown, never invented.
+- A copy of a smart playlist can pick differently from iTunes: among tracks tied
+  at a limit, and on tracks where nothing in the XML explains what iTunes chose.
+- With repeat set to one, the track loops without ending, so the loops don't
+  count as plays.

@@ -9,9 +9,10 @@ local page to browse and play them in.
 
 ## Quick start
 
-Needs Python 3.11+ and ffmpeg. Nothing to install from pip.
+Needs Python 3.11+ and ffmpeg.
 
 ```bash
+pip install -e .    # one dependency: itunessmart, which reads smart playlist rules
 # copy your iTunes Music Library.xml into data/, then set the paths in config.toml
 python make_playlists.py && python build_browser.py && python serve.py
 ```
@@ -31,9 +32,9 @@ looks each filename up across your whole library, and when several files share a
 name, it takes the one whose size matches what iTunes recorded. A tie it can't
 break counts as missing.
 
-On the one library it was built against, 13,418 playlist entries, the swap alone
-found 96.8%. The search took that to 98.9%. Those 285 entries would otherwise
-have become dead links, quietly.
+On the one library it was built against, 13,418 entries in hand-made playlists,
+the swap alone found 96.8%. The search took that to 98.9%. Those 285 entries
+would otherwise have become dead links, quietly.
 
 What it can't find, it shows you: greyed out, with the reason in a Found column
 you can switch on.
@@ -42,8 +43,12 @@ you can switch on.
 
 - **Plain `.m3u8` playlist files.** Tested with VLC; any player that reads m3u8
   should take them. If that's all you wanted, stop after `make_playlists.py`.
-- **A browsable page.** Your whole music library and hand-made playlists, with
-  sorting, search, 29 library fields as columns, and a column browser.
+- **A browsable page.** Your whole music library and your playlists, with
+  sorting, search, 31 library fields as columns, and a column browser.
+- **Smart playlists.** Yours come back as the lists iTunes saved. Duplicate one
+  and its rules run again, live. Or make a new one.
+- **Plays and ratings that count.** Play a track to its end, or click its stars,
+  and `serve.py` saves it.
 - **Album and artist views**, iTunes 11 style, with covers taken from the
   artwork embedded in your files.
 - **Playback in the browser**, with Up Next, media keys and keyboard control. Or
@@ -82,7 +87,7 @@ Every skin is built from colour values written from scratch.
 ## Status
 
 **0.2.0 alpha.** It has only ever run against one large library, on Linux.
-There are 72 tests, but nobody has yet pointed it at a library other than the one
+There are 146 tests, but nobody has yet pointed it at a library other than the one
 it was written for. That's the whole body of evidence.
 
 If yours came off Windows, the path remapping is untested there, and it's the
@@ -95,4 +100,4 @@ Corporation. iTunes is a trademark of Apple Inc.; Windows is a trademark of
 Microsoft Corporation. This reads library files you already own and contains no
 code or assets from either company.
 
-[How it works](docs/how-it-works.md) · Python 3.11+ and ffmpeg, no Python dependencies · MIT
+[How it works](docs/how-it-works.md) · Python 3.11+, ffmpeg and one Python dependency · MIT

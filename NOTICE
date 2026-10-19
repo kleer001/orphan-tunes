@@ -24,3 +24,9 @@ The library format this software reads is Apple's XML property list, parsed with
 Python's standard-library `plistlib`. No Apple software, framework or API is
 used, and nothing is reverse-engineered or circumvented: the file being read is
 one the user already has on their own disk.
+
+Smart playlist rules sit in that file as two binary fields, Smart Info and Smart
+Criteria. They are decoded by itunessmart (https://github.com/cvzi/itunes_smartplaylist,
+MIT License, copyright cuzi), a separate package installed as a dependency and
+not copied into this project. Its reading of the format comes from that project,
+not from Apple.

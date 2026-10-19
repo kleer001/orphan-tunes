@@ -221,8 +221,8 @@ def test_a_tied_limit_agrees_up_to_the_tie(oracle, library, name):
 
 
 @needs_library
-@pytest.mark.xfail(strict=True, reason="iTunes leaves out an audiobook and tracks with no "
-                   "album; the XML marks neither")
+@pytest.mark.xfail(strict=True, reason="iTunes leaves out an Audiobook-genre track and "
+                   "tracks with no album name; nothing in the XML says why")
 def test_clear_menser(oracle):
     saved, mine, _ = oracle["Clear Menser"]
     assert sorted(mine) == sorted(saved)
