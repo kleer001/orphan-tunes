@@ -125,6 +125,11 @@ stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='4'/%3E\
 .grow{flex:1 1 auto;width:300px;min-width:90px}
 .last{padding-right:10px}
 .star{color:#5a5a5a;letter-spacing:1px}
+.rate i{font-style:normal}
+.rate i.off{visibility:hidden;opacity:.55}
+.row:hover .rate i.off,.row.sel .rate i.off,.menu .rate i.off{visibility:visible}
+.menu .rateline:hover{background:none;color:inherit}
+.menu .rate i:hover{color:#3a6ea5}
 
 /* Floating panels: View Options on the headers, Preferences on the gear. */
 .panel{position:fixed;z-index:20;background:#f2f2f2;border:1px solid #7a7a7a;border-radius:5px;

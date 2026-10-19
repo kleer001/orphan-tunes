@@ -61,3 +61,23 @@ def test_modes_are_remembered():
 def test_every_mode_the_page_can_reach_is_one_the_cycle_defines():
     for mode in REPEAT_CYCLE:
         assert f'"{mode}"' in JS, f"{mode} is unreachable from the page"
+
+
+def test_a_play_is_counted_when_a_track_ends_and_not_when_it_starts():
+    """As iTunes counted. A skip must not raise a play count."""
+    assert 'addEventListener("ended",()=>{recordPlay(nowIdx); step(1);})' in JS
+    start = JS[JS.index("function start("):JS.index("\nfunction ", JS.index("function start("))]
+    assert "recordPlay" not in start
+
+
+def test_plays_and_ratings_are_recorded_only_when_served():
+    """Opened from disk there is no server to keep them."""
+    for name in ("function recordPlay(", "function rate("):
+        body = JS[JS.index(name):JS.index("\n}", JS.index(name))]
+        assert "if(!SERVED" in body, name
+
+
+def test_recorded_values_are_keyed_by_persistent_id_not_row_number():
+    """A rebuild renumbers rows; a Persistent ID stays with its track."""
+    assert "pid:DATA.pids[i]" in JS
+    assert "new Map(DATA.pids.map((p,i)=>[p,i]))" in JS

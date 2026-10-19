@@ -12,7 +12,11 @@ let view="songs",browserOn=false,browse={genre:null,artist:null,album:null};
 let openAlbum=-1,artistSel=null,viewAlbums=[],viewAlbumIds=new Map();
 // pool index -> album index, and artist -> its place in iTunes' artist order
 let ALBUM_OF=null,ARTIST_RANK=new Map();
-let T=-1,S=-1,GENRE=-1,TRACKNO=-1,RATING=-1;
+let T=-1,S=-1,GENRE=-1,TRACKNO=-1,RATING=-1,PLAYS=-1,PLAYED=-1;
+// Served by serve.py the page records plays, ratings and smart playlists in its
+// state file. Opened from disk it shows the library as built and records nothing.
+const SERVED=location.protocol!=="file:";
+let STATE={tracks:{},playlists:{}};
 const MODEKEY="playlists.modes", VIEWKEY="playlists.view";
 // How long the button holds its result before going back to its label.
 const VLC_NOTICE_MS=1800;
@@ -37,6 +41,13 @@ const mb=b=>b>=GB?(b/GB).toFixed(2)+" GB":(b/MB).toFixed(1)+" MB";
 // hollow; it still sorts with its star count, just below the hand-set ones.
 const PER_STAR=20;
 const stars=v=>v?(Number.isInteger(v)?"★":"☆").repeat(Math.round(v/PER_STAR)):"";
+// Five slots, so a click lands on a star. The empty ones show only on the
+// hovered or selected row.
+const rateHtml=v=>{
+  const n=Math.round(v/PER_STAR), on=Number.isInteger(v)?"★":"☆";
+  return `<span class="star rate">`+[1,2,3,4,5].map(r=>
+    `<i data-r="${r}"${r>n?' class="off"':""}>${r>n?"·":on}</i>`).join("")+`</span>`;
+};
 function fmt(v,kind,gone){
   if(gone&&(kind==="time"||kind==="size"))return "";
   if(v===""||v===0||v===null)return kind==="bool"?"":"";
@@ -202,7 +213,8 @@ function rowHtml(i){
   const idx=rows[i], t=DATA.tracks[idx], gone=missing(t);
   return `<div class="row${i%2?" alt":""}${i===sel?" sel":""}${gone?" ghost":""}`+
     `${idx===nowIdx?" playing":""}" data-i="${i}" data-t="${idx}">`+
-    vis.map((f,n)=>`<div class="${colCls[n]}">${fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
+    vis.map((f,n)=>`<div class="${colCls[n]}">`+
+      `${f===RATING&&SERVED?rateHtml(t[f]):fmt(t[f],FIELDS[f][1],gone)}</div>`).join("")+
     `</div>`;
 }
 
@@ -562,6 +574,51 @@ function paint(){
   if(left!==painted.left){painted.left=left; el.left.textContent=left;}
 }
 
+/* ---- Plays and ratings ------------------------------------------------------ */
+
+function send(change){
+  fetch("state",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(change)})
+    .then(r=>{if(!r.ok)lcd("Could not save to the state file");})
+    .catch(()=>lcd("Server not running: nothing saved"));
+}
+
+// The state file holds absolute values, keyed by Persistent ID, so they land on
+// the right row whatever order a rebuild put the pool in.
+function applyState(){
+  const row=new Map(DATA.pids.map((p,i)=>[p,i]));
+  for(const [pid,v] of Object.entries(STATE.tracks)){
+    const t=DATA.tracks[row.get(pid)];
+    if(!t)continue;                       // gone from the library since
+    if("plays" in v){t[PLAYS]=v.plays; t[PLAYED]=v.played;}
+    if("rating" in v)t[RATING]=v.rating;
+  }
+}
+
+async function loadState(){
+  if(!SERVED)return;
+  try{const r=await fetch("state"); if(r.ok)STATE=await r.json();}catch(e){}
+}
+
+// iTunes counted a play when a track reached its end, not when it started.
+function recordPlay(i){
+  if(!SERVED||i<0)return;
+  const t=DATA.tracks[i];
+  t[PLAYS]+=1; t[PLAYED]=new Date().toISOString().slice(0,19).replace("T"," ");
+  send({type:"play",pid:DATA.pids[i],plays:t[PLAYS],played:t[PLAYED]});
+  draw();
+}
+
+// A rating set here is the track's own, so a hollow (album-derived) one turns
+// solid. Clicking the star already set clears it.
+function rate(i,n){
+  if(!SERVED)return;
+  const t=DATA.tracks[i], v=n*PER_STAR===t[RATING]?0:n*PER_STAR;
+  t[RATING]=v;
+  send({type:"rate",pid:DATA.pids[i],rating:v});
+  draw();
+}
+
 /* ---- Up Next and the context menu ------------------------------------------ */
 
 function enqueue(ids,next){
@@ -597,7 +654,8 @@ function openMenu(e,ids,first,list){
   menu={ids,first,list};
   $("#ctx").innerHTML='<div class="mi" data-m="play">Play</div>'+
     '<div class="mi" data-m="next">Play Next</div>'+
-    '<div class="mi" data-m="add">Add to Up Next</div>';
+    '<div class="mi" data-m="add">Add to Up Next</div>'+
+    (SERVED&&ids.length===1?`<div class="mi rateline">Rating ${rateHtml(DATA.tracks[ids[0]][RATING])}</div>`:"");
   openPanel($("#ctx"),e.clientX,e.clientY);
 }
 
@@ -654,6 +712,8 @@ function boot(){
   T=FIELDS.findIndex(f=>f[1]==="time"); S=FIELDS.findIndex(f=>f[1]==="size");
   GENRE=FIELDS.findIndex(f=>f[0]==="Genre"); TRACKNO=FIELDS.findIndex(f=>f[0]==="#");
   RATING=FIELDS.findIndex(f=>f[0]==="Rating");
+  PLAYS=FIELDS.findIndex(f=>f[0]==="Plays"); PLAYED=FIELDS.findIndex(f=>f[0]==="Last Played");
+  applyState();
   ALBUM_OF=new Int32Array(DATA.tracks.length);
   DATA.albums.forEach((al,a)=>{
     for(const i of al[A_IDS])ALBUM_OF[i]=a;
@@ -679,7 +739,10 @@ function boot(){
   $("#thead").onclick=e=>{const el=e.target.closest("div[data-c]");if(!el)return;
     const c=+el.dataset.c; asc=(c===sortCol)?!asc:true; sortCol=c; sel=-1; draw();};
   $("#scroll").addEventListener("scroll",()=>renderRows(),{passive:true});
-  $("#rows").onclick=e=>{const el=e.target.closest(".row");if(el)setSel(+el.dataset.i);};
+  $("#rows").onclick=e=>{const el=e.target.closest(".row");if(!el)return;
+    setSel(+el.dataset.i);
+    const star=e.target.closest("[data-r]");
+    if(star)rate(rows[+el.dataset.i],+star.dataset.r);};
   $("#rows").ondblclick=e=>{const el=e.target.closest(".row");if(!el)return;
     play(rows[+el.dataset.i],rows);};
   $("#rows").oncontextmenu=e=>{const el=e.target.closest(".row");if(!el)return;
@@ -713,6 +776,11 @@ function boot(){
   }
 
   $("#ctx").onclick=e=>{const m=e.target.closest(".mi");if(!m)return;
+    const star=e.target.closest("[data-r]");
+    if(m.classList.contains("rateline")){
+      if(star){closePanels(); rate(menu.ids[0],+star.dataset.r);}
+      return;
+    }
     closePanels();
     if(m.dataset.m==="play")play(menu.first,menu.list);
     else enqueue(menu.ids,m.dataset.m==="next");};
@@ -755,7 +823,7 @@ function boot(){
   audio.addEventListener("play",paint);
   audio.addEventListener("pause",paint);
   audio.addEventListener("loadedmetadata",paint);
-  audio.addEventListener("ended",()=>step(1));
+  audio.addEventListener("ended",()=>{recordPlay(nowIdx); step(1);});
   audio.addEventListener("error",()=>{
     const t=DATA.tracks[nowIdx];
     lcd(t?`Cannot play ${t[0]}`:"Playback failed");
@@ -812,4 +880,4 @@ function boot(){
   });
 }
 
-DATA=LIBRARY;boot();
+DATA=LIBRARY;loadState().then(boot);
