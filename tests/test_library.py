@@ -20,7 +20,6 @@ from build_browser import (
     extract_art,
     group_albums,
     is_music,
-    read_library,
     write_data,
 )
 
@@ -95,12 +94,6 @@ def test_page_gets_a_quoted_relative_url_for_each_found_track(tmp_path):
     text = (out / "data.js").read_text(encoding="utf-8")
     data = json.loads(text[len("const LIBRARY="):-2])
     assert data["files"] == ["../music/51%25sincere/Mix%20%231.mp3", None]
-
-
-@pytest.fixture(scope="module")
-def library():
-    """Parsed once: it walks 36,000 files and reads a 57 MB plist."""
-    return read_library()
 
 
 @pytest.mark.skipif(not os.path.isfile(config.LIBRARY),
