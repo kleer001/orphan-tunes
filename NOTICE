@@ -29,4 +29,6 @@ Smart playlist rules sit in that file as two binary fields, Smart Info and Smart
 Criteria. They are decoded by itunessmart (https://github.com/cvzi/itunes_smartplaylist,
 MIT License, copyright cuzi), a separate package installed as a dependency and
 not copied into this project. Its reading of the format comes from that project,
-not from Apple.
+not from Apple. This project reverses one detail of that reading, the most/least
+direction of three sort orders, after it compared the decoded rules with the
+track lists that the same file saved.

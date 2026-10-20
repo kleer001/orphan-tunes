@@ -8,6 +8,9 @@
 - rmdir: the remove-directory call, which refuses a directory that holds anything
 - byte-range: sending only the part of a file the player asks for
 
+- smart playlist: a playlist iTunes fills from rules
+- itunessmart: the package that decodes the smart playlist rules
+
 ## Decided - replace
 - CSS: styles
 - stylesheet: styles
@@ -16,6 +19,8 @@
 - gitignored: listed in .gitignore
 - prev: previous
 - GET: drop the method, name the address
+- POST: drop the method, name the address
+- blob: binary field
 
 ## Decided - fine as-is
 - artist
@@ -53,3 +58,9 @@
 - filesystem
 - localhost
 - mdn's
+- ID
+- audiobook
+- API
+- plistlib
+- cuzi
+- cvzi

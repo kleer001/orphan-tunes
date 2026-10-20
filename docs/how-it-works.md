@@ -27,8 +27,8 @@ Drop the `file://` at the front and the `/` at the end, and decode the
 `config.toml` is in, wherever you run from.
 
 `data/` is in `.gitignore`, because a library export is personal listening
-history. So is the state file, which keeps the plays and ratings the page
-records. It sits outside the browser folder, so a rebuild can't touch it.
+history. So is the state file, which keeps the plays, ratings and smart playlists
+the page saves. It sits outside the browser folder, so a rebuild can't touch it.
 
 ## Finding your tracks
 
@@ -106,9 +106,9 @@ Pick an artist to see their albums and tracks.
 Ratings show as stars, from iTunes' 0 to 100 at 20 a star. Rate an album and not
 its tracks, and iTunes gives each track the album's rating, flagged
 `Rating Computed` in the XML. The page draws those stars hollow. Solid ones are
-yours. They sort just below hand-set ratings of the same count. Click a star in
-the Rating column, or use Rating in a track's right-click menu, to set your own.
-Click the star that's already set to clear it.
+yours. They sort just below hand-set ratings of the same count. When `serve.py`
+serves the page, click a star in the Rating column, or use Rating in a track's
+right-click menu, to set your own. Click the star that's already set to clear it.
 
 - Right-click a track, album or artist for Play, Play Next and Add to Up Next.
   Up Next plays ahead of the list you started from.
@@ -130,50 +130,59 @@ Click the star that's already set to clear it.
 
 ## Smart playlists
 
-iTunes stores a smart playlist's rules as two binary blobs, `Smart Info` and
-`Smart Criteria`. The `itunessmart` package decodes them. `smart_rules.py` turns
-the result into one flat set of rules: match all or any, each rule a field, an
-operator and a value, plus a limit and "only checked songs".
+iTunes stores a smart playlist's rules as two binary fields, `Smart Info` and
+`Smart Criteria`. The `itunessmart` package, a separate project, decodes them.
+`smart_rules.py` turns the result into one flat set of rules, with no groups
+inside groups. The set holds match all or any, the rules, a limit and "only
+checked songs". Each rule is a field, an operator and a value.
 
-Each of your iTunes smart playlists shows with a gear icon, and holds the list
-iTunes saved at export. Its rules show in a bar above the tracks. It's never changed.
+Your iTunes smart playlists show with a gear icon. Each one holds the list iTunes
+saved at export, and its rules show in a bar above the tracks. The page never
+changes these lists.
 
-**Duplicate** opens a copy in the rule editor. A copy, or a new one from the
-**+** at the top of the source list, runs its rules again whenever a play, a
-rating or an edit could change the result. `static/smart.js` runs them in the
-page. A copy always updates live, even where iTunes had live updating off.
+To get a live one, use **Duplicate** in that bar, or the **+** at the top of the
+source list for a new one, and the rule editor opens. A live playlist runs its
+rules again in the page, with `static/smart.js`, whenever a play, a rating or an
+edit could change the result. It always updates live, even where iTunes had live
+updating off.
 
 A rule set that mixes all and any in nested groups doesn't fit the flat editor.
-Nor does one with a field the page has no column for. That playlist still shows
-its saved list, but has no Duplicate, and the build prints its name.
+Nor does one with a field or an operator the page doesn't have. That playlist
+still shows its saved list, but has no Duplicate, and the build prints its name.
 
 Comparing the rules with the lists iTunes saved turned up three details:
 
-- A rating iTunes worked out from the album counts only when the album's rating
-  was set by hand.
-- A size limit stops at the first track that doesn't fit. The page treats a
-  time limit the same way.
-- `itunessmart` 1.2.0 reads "most" and "least" backwards for the played, often
-  and added orders. `smart_rules.py` turns them round, so the version is pinned.
+- A hollow-star rating, one iTunes copied from the album, counts in a rule only
+  when you set the album's rating by hand.
+- A size limit, like 12 GB, stops at the first track that doesn't fit. It
+  doesn't skip ahead to a smaller one.
+- `itunessmart` 1.2.0 swaps "most" and "least" for last played, play count and
+  date added. `smart_rules.py` swaps them back.
+
+None of the tested lists had a time limit, and the page stops one the same way.
+`itunessmart` is pinned to 1.2.0, because a release that fixed the swap would
+undo the fix here.
 
 On the tested library, with "now" set to the export date, the rules give back 9
-of the 15 saved lists track for track. Four more tie many tracks at the limit's
-cut, like 216 never-played tracks for 90 places, and which ones iTunes took is
-unknown. One picks at random. The last is 12 tracks over, at 3,413: iTunes left
-out one track in the Audiobook genre and 11 with no album name. Nothing in the
-XML says why.
+of the 15 saved lists track for track. Four more tie many tracks at the limit,
+like 216 never-played tracks for 90 places, and which ones iTunes took is
+unknown. One picks at random. The last, "Rating is 3 stars and Artist is not"
+one artist, picks 3,413 tracks where iTunes saved 3,401. Of the 12 extra, 11
+have no album name and one is in the Audiobook genre. Nothing in the XML says
+why.
 
 ## What the page records
 
 Served by `serve.py`, the page sends each play and rating, and each smart
-playlist you save or delete, to `POST /state`. The server writes them to the
-`state` file, and `GET /state` hands them back when the page loads.
+playlist you save or delete, to the server's `/state` address. The server writes
+them to the `state` file, and hands them back when the page loads.
 
 - A play counts when a track reaches its end, as iTunes counted it. A skip
   isn't a play.
-- Tracks are kept by their Persistent ID from the XML, so the record survives a
-  rebuild that renumbers the rows.
-- Each write goes to a temporary file first, then replaces the old one whole.
+- The state file names each track by its Persistent ID from the XML, so the
+  record survives a rebuild that renumbers the tracks.
+- Each write goes to a temporary file first, then replaces the old one whole, so
+  a crash can't leave half a file.
 - Opened from disk, the page records nothing, and the editor is off.
 
 ## Playback
@@ -244,7 +253,7 @@ refusals, and that one problem stops the whole run.
 - A Windows export writes paths like `file://localhost/C:/...`. The path swap
   has never been tried on one.
 - Tracks whose files are gone stay gone: counted and shown, never invented.
-- A copy of a smart playlist can pick differently from iTunes: among tracks tied
-  at a limit, and on tracks where nothing in the XML explains what iTunes chose.
+- A copy of a smart playlist can pick differently from iTunes where tracks tie
+  at a limit, or where the XML doesn't explain iTunes' choice.
 - With repeat set to one, the track loops without ending, so the loops don't
   count as plays.

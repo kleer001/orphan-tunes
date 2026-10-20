@@ -45,10 +45,10 @@ you can switch on.
   should take them. If that's all you wanted, stop after `make_playlists.py`.
 - **A browsable page.** Your whole music library and your playlists, with
   sorting, search, 31 library fields as columns, and a column browser.
-- **Smart playlists.** Yours come back as the lists iTunes saved. Duplicate one
-  and its rules run again, live. Or make a new one.
-- **Plays and ratings that count.** Play a track to its end, or click its stars,
-  and `serve.py` saves it.
+- **Smart playlists.** Yours come back as the lists iTunes saved. With `serve.py`
+  running, duplicate one to run its rules live, or make a new one.
+- **Plays and ratings.** Play a track to its end, or click its stars, and
+  `serve.py` saves it. Live smart playlists update to match.
 - **Album and artist views**, iTunes 11 style, with covers taken from the
   artwork embedded in your files.
 - **Playback in the browser**, with Up Next, media keys and keyboard control. Or
