@@ -1,6 +1,6 @@
 const $=s=>document.querySelector(s);
-// cur is a playlist index, or LIB for the whole music library
-const LIB=-1;
+// cur is a playlist index, or LIB or BOOKS for a section of the library
+const LIB=-1, BOOKS=-2;
 let DATA=null,FIELDS=[],FOUND=-1,vis=[],cur=LIB,sortCol=-1,asc=true,rows=[],sel=-1;
 // what is playing, as a pool index; the list it was started from, and the
 // order that list plays in (shuffled or not)
@@ -81,8 +81,10 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&qu
 const byText=(a,b)=>a.localeCompare(b,undefined,{sensitivity:"base",numeric:true});
 const byRank=(a,b)=>ARTIST_RANK.get(a)-ARTIST_RANK.get(b);
 
-const sourceIds=()=>cur===LIB?DATA.music:idsOf(DATA.playlists[cur]);
-const sourceName=()=>cur===LIB?"Library":DATA.playlists[cur].name;
+// The library's sections, each a fixed source above the playlists.
+const SECTION={[LIB]:["Library","music"],[BOOKS]:["Audiobooks","audiobooks"]};
+const sourceIds=()=>cur<0?DATA[SECTION[cur][1]]:idsOf(DATA.playlists[cur]);
+const sourceName=()=>cur<0?SECTION[cur][0]:DATA.playlists[cur].name;
 const albumOf=i=>DATA.albums[ALBUM_OF[i]];
 const colOf=label=>FIELDS.findIndex(f=>f[0]===label);
 
@@ -107,7 +109,9 @@ function idsOf(p){
 
 function drawSources(){
   $("#srclist").innerHTML=
-    `<div class="src lib${cur===LIB?" on":""}" data-i="${LIB}">${NOTE}<span>Library</span></div>`+
+    [LIB,BOOKS].filter(i=>DATA[SECTION[i][1]].length).map(i=>
+      `<div class="src lib${cur===i?" on":""}" data-i="${i}">${NOTE}<span>${SECTION[i][0]}</span></div>`
+    ).join("")+
     DATA.playlists.map((p,i)=>`<div class="src${i===cur?" on":""}" data-i="${i}">`+
       `${p.smart||p.user?GEAR_ICON:NOTE}<span>${esc(p.name)}</span></div>`).join("");
 }
@@ -152,7 +156,7 @@ function describe(r){
 }
 
 function paintRules(){
-  const p=cur===LIB?null:DATA.playlists[cur], bar=$("#rulebar");
+  const p=cur<0?null:DATA.playlists[cur], bar=$("#rulebar");
   bar.classList.toggle("on",!!(p&&(p.smart||p.user)));
   if(!p||!(p.smart||p.user))return;
   const rules=rulesOf(p);
@@ -943,7 +947,7 @@ function boot(){
     e.preventDefault();
     if(!SERVED)return;
     const el=e.target.closest(".src"), i=el?+el.dataset.i:LIB;
-    const p=i===LIB?null:DATA.playlists[i];
+    const p=i<0?null:DATA.playlists[i];
     menu={ids:[],first:undefined,list:[],src:p};
     $("#ctx").innerHTML='<div class="mi" data-m="new">New Smart Playlist…</div>'+
       (p?.smart?.rules?'<div class="mi" data-m="dup">Duplicate as Smart Playlist…</div>':"")+

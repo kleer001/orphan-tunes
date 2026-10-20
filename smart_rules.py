@@ -49,8 +49,8 @@ INT_OP = {"is": "is", "is not": "is not", "greater than": "greater than",
 DATE_OP = {"is in the last": "in the last", "is not in the last": "not in the last",
            "is after": "is after", "is before": "is before"}
 
-# The page's Media Kind column, from build_browser.media_kind().
-MEDIA_KINDS = {"Music", "Podcast", "Movie", "TV Show"}
+# The page's Media Kind column, from build_browser.SECTIONS.
+MEDIA_KINDS = {"Music", "Audiobook", "Podcast", "Movie", "TV Show"}
 # iTunes adds "Media Kind is Music or Music Video" to every smart playlist made
 # in the Music section, and hides it from the rule editor. The page files music
 # videos under Music, so the pair is one rule here.

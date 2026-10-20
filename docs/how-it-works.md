@@ -87,6 +87,11 @@ Covers come from the artwork embedded in each file: ffmpeg pulls them out into
 cover is filed under its source file's path, so a rebuild skips files it has
 already read. To pick up changed artwork, delete `art/`.
 
+The source list on the left starts with Library, which holds what iTunes filed
+under Music. Audiobooks comes next when the library has any, then your
+playlists. The XML has no media kind key. iTunes records it instead by which
+built-in list holds a track, and the page reads those lists.
+
 The page has three views.
 
 **Songs** is the track table. Sort by any column, or search by song, artist or
@@ -150,7 +155,7 @@ A rule set that mixes all and any in nested groups doesn't fit the flat editor.
 Nor does one with a field or an operator the page doesn't have. That playlist
 still shows its saved list, but has no Duplicate, and the build prints its name.
 
-Comparing the rules with the lists iTunes saved turned up three details:
+Comparing the rules with the lists iTunes saved turned up four details:
 
 - A hollow-star rating, one iTunes copied from the album, counts in a rule only
   when you set the album's rating by hand.
@@ -158,18 +163,17 @@ Comparing the rules with the lists iTunes saved turned up three details:
   doesn't skip ahead to a smaller one.
 - `itunessmart` 1.2.0 swaps "most" and "least" for last played, play count and
   date added. `smart_rules.py` swaps them back.
+- A smart playlist made under Music has a hidden rule, "Media Kind is Music". It
+  leaves out an MP3 that iTunes filed as an audiobook.
 
 None of the tested lists had a time limit, and the page stops one the same way.
 `itunessmart` is pinned to 1.2.0, because a release that fixed the swap would
 undo the fix here.
 
-On the tested library, with "now" set to the export date, the rules give back 9
-of the 15 saved lists track for track. Four more tie many tracks at the limit,
-like 216 never-played tracks for 90 places, and which ones iTunes took is
-unknown. One picks at random. The last, "Rating is 3 stars and Artist is not"
-one artist, picks 3,413 tracks where iTunes saved 3,401. Of the 12 extra, 11
-have no album name and one is in the Audiobook genre. Nothing in the XML says
-why.
+On the tested library, with "now" set to the export date, the rules give back
+10 of the 15 saved lists track for track. Four more tie many tracks at the
+limit, like 216 never-played tracks for 90 places, and which ones iTunes took is
+unknown. The last one picks at random.
 
 ## What the page records
 
@@ -254,6 +258,6 @@ refusals, and that one problem stops the whole run.
   has never been tried on one.
 - Tracks whose files are gone stay gone: counted and shown, never invented.
 - A copy of a smart playlist can pick differently from iTunes where tracks tie
-  at a limit, or where the XML doesn't explain iTunes' choice.
+  at a limit.
 - With repeat set to one, the track loops without ending, so the loops don't
   count as plays.

@@ -161,7 +161,7 @@ def test_random_picks_the_same_tracks_for_one_seed():
 # ---- Against the lists iTunes saved ----------------------------------------------
 
 # Rule sets whose saved list the evaluator reproduces track for track.
-EXACT = ["4 star", "5star", "60-Second", "autoBach", "Clear Menser25recent",
+EXACT = ["4 star", "5star", "60-Second", "autoBach", "Clear Menser", "Clear Menser25recent",
          "HighestGrossing", "Recently Played", "recentlyAdded", "top20"]
 # Limited lists where many tracks tie at the cut, so iTunes' choice among them
 # is unknown. The sort-key values ahead of the tie still have to agree.
@@ -200,8 +200,6 @@ def test_the_rules_pick_what_itunes_saved(oracle, name):
 @needs_library
 def test_every_saved_track_meets_its_rules(oracle):
     for name, (saved, _, matched) in oracle.items():
-        if name == "Clear Menser":
-            continue
         assert set(saved) <= matched, name
 
 
@@ -218,14 +216,6 @@ def test_a_tied_limit_agrees_up_to_the_tie(oracle, library, name):
 
     assert ahead(saved) == ahead(mine)
     assert all(library.tracks[i][key] == tie for i in set(saved) ^ set(mine))
-
-
-@needs_library
-@pytest.mark.xfail(strict=True, reason="iTunes leaves out an Audiobook-genre track and "
-                   "tracks with no album name; nothing in the XML says why")
-def test_clear_menser(oracle):
-    saved, mine, _ = oracle["Clear Menser"]
-    assert sorted(mine) == sorted(saved)
 
 
 VALUE = {"pair": [1, 2], "span": {"n": 1, "unit": "days"}}

@@ -72,19 +72,24 @@ FIELDS = [
     ("Checked",        "Checked",     "bool", False),
 ]
 
-# iTunes' Music library left these out; they had sources of their own.
-NOT_MUSIC = ("Podcast", "Movie", "TV Show")
+# iTunes keeps one built-in playlist per section of the library, marked by its
+# Distinguished Kind. That membership is the only record of a track's media kind
+# in the XML: an MP3 filed as an audiobook carries no flag of its own. Music
+# videos and voice memos sit in the Music list.
+SECTIONS = {4: "Music", 5: "Audiobook", 10: "Podcast", 2: "Movie", 3: "TV Show"}
 
 
-def media_kind(track):
-    """The section iTunes filed a track under. Music videos count as Music, as
-    the filter iTunes adds to smart playlists made in the Music section does."""
-    return next((k for k in NOT_MUSIC if track.get(k)), "Music")
+def file_sections(lib):
+    """Give each track the Media Kind of the section list that holds it. A track
+    in none of them has no Media Kind, and no Music smart playlist takes it."""
+    for playlist in lib["Playlists"]:
+        kind = SECTIONS.get(playlist.get("Distinguished Kind"))
+        for item in playlist.get("Playlist Items", []) if kind else []:
+            lib["Tracks"][str(item["Track ID"])]["Media Kind"] = kind
 
 
 # Fields the XML does not hold under that name, worked out from what it does.
 DERIVED = {
-    "Media Kind": media_kind,
     "Checked": lambda track: not track.get("Disabled"),
 }
 
@@ -112,9 +117,9 @@ class Library(NamedTuple):
     `paths` is index-aligned with `tracks` and stays server-side: the page is
     only ever given row numbers. `pids` is index-aligned too: each track's
     Persistent ID, which outlives a rebuild where a row number does not.
-    `music` lists the pool rows that make up the
-    Library source; `albums` groups the whole pool, so a playlist's albums can
-    be shown too.
+    `music` and `audiobooks` list the pool rows that make up the Library and
+    Audiobooks sources; `albums` groups the whole pool, so a playlist's albums
+    can be shown too.
     """
 
     tracks: list
@@ -123,6 +128,7 @@ class Library(NamedTuple):
     playlists: list
     missing: int
     music: list
+    audiobooks: list
     albums: list
     exported: str
 
@@ -136,11 +142,6 @@ COMPILATIONS = "Compilations"
 
 def is_local(track):
     return track.get("Location", "").startswith("file://")
-
-
-def is_music(track):
-    """A local file that iTunes would have listed under Music."""
-    return is_local(track) and media_kind(track) == "Music"
 
 
 def sort_text(track, key, sort_key):
@@ -196,6 +197,7 @@ def read_library():
     rules can match them, but not in the Library source."""
     with open(LIBRARY, "rb") as fh:
         lib = plistlib.load(fh)
+    file_sections(lib)
     tracks = lib["Tracks"]
     index = index_by_name(LOCAL_ROOT)
 
@@ -214,7 +216,11 @@ def read_library():
             raw.append(track)
         return seen[key]
 
-    music = [intern(t) for t in tracks.values() if is_music(t)]
+    def section(kind):
+        return [intern(t) for t in tracks.values()
+                if is_local(t) and t.get("Media Kind") == kind]
+
+    music, audiobooks = section("Music"), section("Audiobook")
     for track in tracks.values():
         if is_local(track):
             intern(track)
@@ -247,7 +253,8 @@ def read_library():
     playlists.sort(key=lambda p: p["name"].lower())
     albums = group_albums(raw, paths)
     exported = lib["Date"].strftime("%Y-%m-%d %H:%M:%S")
-    return Library(pool, paths, pids, playlists, missing, music, albums, exported)
+    return Library(pool, paths, pids, playlists, missing, music, audiobooks, albums,
+                   exported)
 
 
 def run_ffmpeg(*args):
@@ -315,7 +322,8 @@ def write_data(library, out_dir, art):
     albums = [[a.title, a.artist, a.year, *art.get(i, ("", "")), a.ids]
               for i, a in enumerate(library.albums)]
     data = {"fields": fields, "tracks": library.tracks, "playlists": library.playlists,
-            "files": files, "pids": library.pids, "music": library.music, "albums": albums,
+            "files": files, "pids": library.pids, "music": library.music,
+            "audiobooks": library.audiobooks, "albums": albums,
             "exported": library.exported}
     # A script, not JSON: Firefox refuses fetch() between file:// pages, but
     # still runs a <script src>, so the page also works opened from disk.
@@ -1004,7 +1012,8 @@ def main():
     library = read_library()
     art = extract_art(library.albums, out_dir)
     size = write_data(library, out_dir, art)
-    print(f"  {len(library.music)} library tracks, {len(library.albums)} albums, "
+    print(f"  {len(library.music)} library tracks, {len(library.audiobooks)} audiobook "
+          f"tracks, {len(library.albums)} albums, "
           f"{len(art)} with covers")
     print(f"  {len(library.playlists)} playlists, {library.refs} track refs, "
           f"{len(library.tracks)} unique tracks, {library.missing} shown as missing")

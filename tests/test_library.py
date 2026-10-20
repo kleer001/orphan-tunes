@@ -18,8 +18,8 @@ from build_browser import (
     album_of,
     cell,
     extract_art,
+    file_sections,
     group_albums,
-    is_music,
     write_data,
 )
 
@@ -33,10 +33,20 @@ def test_cell_renders_dates_so_they_sort_as_text():
     assert cell({"Play Date UTC": stamp}, "Play Date UTC", "date") == "2018-04-21 13:05:00"
 
 
-def test_media_kind_comes_from_the_section_flags():
-    assert cell({}, "Media Kind", "text") == "Music"
-    assert cell({"Podcast": True}, "Media Kind", "text") == "Podcast"
-    assert cell({"Movie": True, "Has Video": True}, "Media Kind", "text") == "Movie"
+def test_media_kind_comes_from_the_built_in_section_lists():
+    """An MP3 iTunes filed as an audiobook looks like music in every key it
+    has; only the built-in Audiobooks list says otherwise."""
+    lib = {"Tracks": {"1": {}, "2": {}, "3": {}, "4": {}},
+           "Playlists": [
+               {"Name": "Music", "Distinguished Kind": 4, "Playlist Items": [{"Track ID": 1}]},
+               {"Name": "Audiobooks", "Distinguished Kind": 5,
+                "Playlist Items": [{"Track ID": 2}]},
+               {"Name": "Podcasts", "Distinguished Kind": 10,
+                "Playlist Items": [{"Track ID": 3}]},
+               {"Name": "mine", "Playlist Items": [{"Track ID": 4}]}]}
+    file_sections(lib)
+    kinds = [cell(lib["Tracks"][k], "Media Kind", "text") for k in "1234"]
+    assert kinds == ["Music", "Audiobook", "Podcast", ""]
 
 
 def test_a_track_is_checked_unless_itunes_marked_it_disabled():
@@ -64,15 +74,15 @@ def test_cell_marks_a_computed_rating_half_a_point_low_so_the_page_can_draw_it_h
 
 
 def test_refs_counts_every_playlist_entry():
-    lib = Library(tracks=[], paths=[], pids=[], missing=0, music=[], albums=[], exported="",
-                  playlists=[{"name": "a", "ids": [1, 2]}, {"name": "b", "ids": [3]}])
+    lib = Library(tracks=[], paths=[], pids=[], missing=0, music=[], audiobooks=[], albums=[],
+                  exported="", playlists=[{"name": "a", "ids": [1, 2]}, {"name": "b", "ids": [3]}])
     assert lib.refs == 3
 
 
 def test_page_data_is_a_script_so_the_page_opens_from_disk(tmp_path):
     """Firefox blocks fetch() between file:// pages, which left the page blank."""
     lib = Library(tracks=[["Song"]], paths=["/m/song.mp3"], pids=["A1"], missing=0, music=[],
-                  albums=[], exported="2020-02-09 22:28:50",
+                  audiobooks=[], albums=[], exported="2020-02-09 22:28:50",
                   playlists=[{"name": "a", "ids": [0]}])
     write_data(lib, tmp_path, {})
     text = (tmp_path / "data.js").read_text(encoding="utf-8")
@@ -87,7 +97,8 @@ def test_page_gets_a_quoted_relative_url_for_each_found_track(tmp_path):
     in a filename would break the URL."""
     song = tmp_path / "music" / "51%sincere" / "Mix #1.mp3"
     lib = Library(tracks=[["a"], ["b"]], paths=[str(song), None], pids=["A", "B"], missing=1,
-                  music=[], albums=[], exported="", playlists=[{"name": "a", "ids": [0, 1]}])
+                  music=[], audiobooks=[], albums=[], exported="",
+                  playlists=[{"name": "a", "ids": [0, 1]}])
     out = tmp_path / "browser"
     out.mkdir()
     write_data(lib, out, {})
@@ -112,6 +123,8 @@ class TestAgainstTheRealLibrary:
         kind = [label for _, label, _, _ in FIELDS].index("Media Kind")
         assert any(row[kind] == "Podcast" for row in library.tracks)
         assert all(library.tracks[i][kind] == "Music" for i in library.music)
+        assert all(library.tracks[i][kind] == "Audiobook" for i in library.audiobooks)
+        assert library.audiobooks and not set(library.music) & set(library.audiobooks)
 
     def test_a_track_has_a_path_exactly_when_it_was_found(self, library):
         found = len(FIELDS)                     # the derived column sits last
@@ -160,14 +173,6 @@ def test_artists_sort_without_a_leading_the_unless_itunes_kept_a_sort_key():
     assert album_of({"Artist": "The The", "Sort Artist": "The The"})[2] == "the"
     assert album_of({"Artist": "Prince", "Sort Artist": "Artist Formerly"})[2] \
         == "artist formerly"
-
-
-def test_only_local_music_files_are_library_tracks():
-    assert is_music({"Location": "file:///m/a.mp3"})
-    assert not is_music({"Location": "http://stream.example/a"})
-    assert not is_music({"Location": "file:///m/a.mp3", "Podcast": True})
-    assert not is_music({"Location": "file:///m/a.mov", "Movie": True})
-    assert not is_music({"Location": "file:///m/a.mp4", "TV Show": True})
 
 
 def test_albums_sort_by_artist_then_title_and_tracks_by_disc_then_number():
