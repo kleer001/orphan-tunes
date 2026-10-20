@@ -99,3 +99,11 @@ def test_a_new_playlist_id_is_one_the_server_accepts():
         n, d = divmod(n, 36)
         out = digits[d] + out
     assert PLAYLIST_ID.fullmatch(out)      # what toString(36) gives for a time in 2025
+
+
+def test_the_tab_title_scrolls_the_playing_track_and_goes_back_on_stop():
+    start = JS[JS.index("function start("):JS.index("\nfunction step(")]
+    stop = JS[JS.index("function stop(){"):JS.index("\nfunction togglePlay(")]
+    assert "setMarquee()" in start and "setMarquee()" in stop
+    assert "||PAGE_TITLE" in JS, "stopping puts the page title back"
+    assert "scrollTitle(on)" in JS, "the title scrolls only while the track plays"

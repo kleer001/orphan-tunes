@@ -703,7 +703,7 @@ function start(poolIndex,queued){
   nowIdx=poolIndex; fromUpNext=queued;
   audio.src=location.protocol==="file:"?DATA.files[poolIndex]:"audio?i="+poolIndex;
   audio.play().catch(()=>{ lcd(`Cannot play ${t[0]}`); });
-  markPlaying(); paintLcd(); setSession();
+  markPlaying(); paintLcd(); setSession(); setMarquee();
 }
 
 function step(by){
@@ -720,7 +720,7 @@ function step(by){
 
 function stop(){
   audio.pause(); audio.removeAttribute("src"); audio.load();
-  nowIdx=-1; qpos=-1; fromUpNext=false; paint(); markPlaying(); paintLcd();
+  nowIdx=-1; qpos=-1; fromUpNext=false; paint(); markPlaying(); paintLcd(); setMarquee();
 }
 
 function togglePlay(){
@@ -755,6 +755,24 @@ function paintLcd(){
   $("#lcdSub").textContent=lcdText;
 }
 
+// The tab title scrolls the playing track's name and artist while it plays.
+// A tab that plays audio counts as in the foreground, so the browser does not
+// slow this timer (MDN, Page Visibility API).
+const PAGE_TITLE=document.title, MARQUEE_MS=300;
+let marquee=[], marqueeTimer=0;    // by character, so an emoji stays whole
+function setMarquee(){
+  // No-break spaces: a title collapses ordinary ones, so the gap would jump.
+  const nb=s=>s.replace(/ /g,"\u00a0");
+  marquee=nowIdx>=0?[...nb(label(DATA.tracks[nowIdx])+"   ·   ")]:[];
+  document.title=marquee.join("")||PAGE_TITLE;
+}
+function scrollTitle(on){
+  clearInterval(marqueeTimer);
+  if(on)marqueeTimer=setInterval(()=>{
+    marquee.push(marquee.shift()); document.title=marquee.join("");
+  },MARQUEE_MS);
+}
+
 // Media keys and the desktop's now-playing panel.
 function setSession(){
   if(!("mediaSession" in navigator))return;
@@ -772,6 +790,7 @@ function paint(){
       ? '<path d="M2 1h3.5v12H2zM7.5 1H11v12H7.5z"/>'
       : '<path d="M2 1v12l9.5-6z"/>';
     el.toggle.title=on?"Pause":"Play";
+    scrollTitle(on);
     if("mediaSession" in navigator)
       navigator.mediaSession.playbackState=nowIdx<0?"none":on?"playing":"paused";
   }
